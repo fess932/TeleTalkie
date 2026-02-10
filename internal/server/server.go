@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
@@ -57,8 +59,24 @@ func New(addr string, webFS fs.FS, hub *room.Hub) *Server {
 
 // ListenAndServe запускает HTTP-сервер.
 func (s *Server) ListenAndServe() error {
-	log.Printf("server: listening on %s", s.addr)
+	log.Printf("server: listening on %s (http)", s.addr)
 	return http.ListenAndServe(s.addr, s.mux)
+}
+
+// ListenAndServeTLS запускает HTTPS-сервер с переданным TLS-сертификатом.
+func (s *Server) ListenAndServeTLS(cert tls.Certificate) error {
+	tlsCfg := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+
+	ln, err := net.Listen("tcp", s.addr)
+	if err != nil {
+		return err
+	}
+
+	tlsLn := tls.NewListener(ln, tlsCfg)
+	log.Printf("server: listening on %s (https)", s.addr)
+	return http.Serve(tlsLn, s.mux)
 }
 
 // handleWS — WebSocket upgrade и обслуживание клиента.
