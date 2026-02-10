@@ -36,6 +36,10 @@ let ws = null;
 let localStream = null; // кэшированный MediaStream (камера+микрофон)
 let recorder = null; // MediaRecorder
 let pttState = "idle"; // idle | requesting | talking
+let currentRoom = "";
+let currentName = "";
+let reconnectTimer = null;
+let currentTalker = ""; // имя текущего talker'а (из PEER_INFO)
 
 // ── MSE состояние ──
 let mediaSource = null;
@@ -81,6 +85,8 @@ function handleJoin() {
   joinBtn.textContent = "Подключение…";
   hideLoginError();
 
+  currentRoom = room;
+  currentName = name;
   connect(room, name);
 }
 
@@ -113,9 +119,13 @@ function connect(roomID, name) {
 
   ws.addEventListener("error", () => {
     console.error("[ws] error");
-    joinBtn.disabled = false;
-    joinBtn.textContent = "Войти";
-    showLoginError("Не удалось подключиться");
+    // Если мы на экране входа — показать ошибку
+    if (!loginScreen.hidden) {
+      joinBtn.disabled = false;
+      joinBtn.textContent = "Войти";
+      showLoginError("Не удалось подключиться");
+    }
+    // Если мы в комнате — handleDisconnect (из close) сделает reconnect
   });
 
   ws.addEventListener("message", (e) => {
@@ -163,21 +173,28 @@ function showRoomScreen(roomID, name) {
 
 function handleDisconnect() {
   stopTalking();
-  releaseLocalStream();
   teardownMSE();
   pttState = "idle";
 
   if (!loginScreen.hidden) return; // ещё на экране входа
 
-  statusEl.textContent = "Отключено";
+  statusEl.textContent = "Отключено — переподключение…";
   pttBtn.disabled = true;
 
-  setTimeout(() => {
-    roomScreen.hidden = true;
-    loginScreen.hidden = false;
-    joinBtn.disabled = false;
-    joinBtn.textContent = "Войти";
-    showLoginError("Соединение потеряно");
+  // Автоматический реконнект
+  if (currentRoom && currentName) {
+    scheduleReconnect();
+  }
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    if (roomScreen.hidden) return; // уже вышли на экран входа
+    console.log("[ws] reconnecting...");
+    statusEl.textContent = "Переподключение…";
+    connect(currentRoom, currentName);
   }, 2000);
 }
 
@@ -278,6 +295,7 @@ function onPTTDenied() {
 
 function onPTTReleased() {
   console.log("[ptt] released");
+  currentTalker = "";
   if (pttState === "idle") {
     statusEl.textContent = "Эфир свободен";
   }
@@ -518,9 +536,44 @@ function onRelayChunk(payload) {
   }
 }
 
-// ── Peer info заглушка (будет реализована на шаге 10) ──
+// ── Peer info: список участников и кто говорит ──
 function onPeerInfo(payload) {
-  // TODO: шаг 10
+  try {
+    const text = new TextDecoder().decode(payload);
+    const info = JSON.parse(text);
+
+    // Обновляем список участников
+    peersList.innerHTML = "";
+    if (info.peers && Array.isArray(info.peers)) {
+      for (const name of info.peers) {
+        const li = document.createElement("li");
+        li.textContent = name;
+        if (name === info.talker) {
+          li.classList.add("is-talker");
+        }
+        if (name === currentName) {
+          li.style.fontWeight = "bold";
+        }
+        peersList.appendChild(li);
+      }
+    }
+
+    // Обновляем индикатор talker'а
+    if (info.talker && info.talker !== currentName) {
+      currentTalker = info.talker;
+      talkerNameEl.textContent = info.talker;
+      talkerLabel.hidden = false;
+      noStreamEl.hidden = true;
+    } else if (!info.talker) {
+      currentTalker = "";
+      talkerLabel.hidden = true;
+      if (pttState !== "talking") {
+        noStreamEl.hidden = false;
+      }
+    }
+  } catch (e) {
+    console.error("[peer_info] parse error:", e);
+  }
 }
 
 // ── Утилита: отправка бинарного сообщения ──

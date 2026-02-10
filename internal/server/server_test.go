@@ -55,6 +55,19 @@ func readMsg(t *testing.T, conn *websocket.Conn) []byte {
 	return data
 }
 
+// readMsgSkip reads messages from the connection, skipping any PEER_INFO (0x14)
+// messages, and returns the first non-PEER_INFO message.
+func readMsgSkip(t *testing.T, conn *websocket.Conn) []byte {
+	t.Helper()
+	for {
+		data := readMsg(t, conn)
+		if len(data) > 0 && data[0] == MsgPeerInfo {
+			continue
+		}
+		return data
+	}
+}
+
 func TestPTTGrantedAndDenied(t *testing.T) {
 	ts, _ := setupTestServer(t)
 
@@ -63,14 +76,14 @@ func TestPTTGrantedAndDenied(t *testing.T) {
 
 	// Alice requests PTT — should be granted.
 	sendMsg(t, alice, []byte{MsgPTTOn})
-	resp := readMsg(t, alice)
+	resp := readMsgSkip(t, alice)
 	if len(resp) != 1 || resp[0] != MsgPTTGranted {
 		t.Fatalf("alice: expected PTT_GRANTED (0x%02x), got %v", MsgPTTGranted, resp)
 	}
 
 	// Bob requests PTT while alice holds it — should be denied.
 	sendMsg(t, bob, []byte{MsgPTTOn})
-	resp = readMsg(t, bob)
+	resp = readMsgSkip(t, bob)
 	if len(resp) != 1 || resp[0] != MsgPTTDenied {
 		t.Fatalf("bob: expected PTT_DENIED (0x%02x), got %v", MsgPTTDenied, resp)
 	}
@@ -84,13 +97,13 @@ func TestPTTReleaseNotifiesOthers(t *testing.T) {
 
 	// Alice acquires PTT.
 	sendMsg(t, alice, []byte{MsgPTTOn})
-	readMsg(t, alice) // GRANTED
+	readMsgSkip(t, alice) // GRANTED
 
 	// Alice releases PTT.
 	sendMsg(t, alice, []byte{MsgPTTOff})
 
 	// Bob should receive PTT_RELEASED.
-	resp := readMsg(t, bob)
+	resp := readMsgSkip(t, bob)
 	if len(resp) != 1 || resp[0] != MsgPTTReleased {
 		t.Fatalf("bob: expected PTT_RELEASED (0x%02x), got %v", MsgPTTReleased, resp)
 	}
@@ -105,7 +118,7 @@ func TestMediaChunkRelay(t *testing.T) {
 
 	// Alice acquires PTT.
 	sendMsg(t, alice, []byte{MsgPTTOn})
-	readMsg(t, alice) // GRANTED
+	readMsgSkip(t, alice) // GRANTED
 
 	// Alice sends a media chunk.
 	chunk := []byte{MsgMediaChunk, 0xDE, 0xAD, 0xBE, 0xEF}
@@ -116,7 +129,7 @@ func TestMediaChunkRelay(t *testing.T) {
 		name string
 		conn *websocket.Conn
 	}{{"bob", bob}, {"carol", carol}} {
-		resp := readMsg(t, pair.conn)
+		resp := readMsgSkip(t, pair.conn)
 		if len(resp) < 1 || resp[0] != MsgRelayChunk {
 			t.Fatalf("%s: expected MsgRelayChunk (0x%02x), got 0x%02x", pair.name, MsgRelayChunk, resp[0])
 		}
@@ -135,7 +148,7 @@ func TestMediaChunkIgnoredIfNotTalker(t *testing.T) {
 
 	// Alice acquires PTT.
 	sendMsg(t, alice, []byte{MsgPTTOn})
-	readMsg(t, alice) // GRANTED
+	readMsgSkip(t, alice) // GRANTED
 
 	// Bob (not talker) tries to send a media chunk — should be silently ignored.
 	sendMsg(t, bob, []byte{MsgMediaChunk, 0x01, 0x02})
@@ -144,7 +157,7 @@ func TestMediaChunkIgnoredIfNotTalker(t *testing.T) {
 	realChunk := []byte{MsgMediaChunk, 0xAA, 0xBB}
 	sendMsg(t, alice, realChunk)
 
-	resp := readMsg(t, bob)
+	resp := readMsgSkip(t, bob)
 	if resp[0] != MsgRelayChunk {
 		t.Fatalf("bob: expected relay chunk, got 0x%02x", resp[0])
 	}
@@ -161,21 +174,40 @@ func TestPTTAcquireAfterRelease(t *testing.T) {
 
 	// Alice acquires and releases PTT.
 	sendMsg(t, alice, []byte{MsgPTTOn})
-	readMsg(t, alice) // GRANTED
+	readMsgSkip(t, alice) // GRANTED
 	sendMsg(t, alice, []byte{MsgPTTOff})
-	readMsg(t, bob) // PTT_RELEASED
+	readMsgSkip(t, bob) // PTT_RELEASED
 
 	// Bob should now be able to acquire PTT.
 	sendMsg(t, bob, []byte{MsgPTTOn})
-	resp := readMsg(t, bob)
+	resp := readMsgSkip(t, bob)
 	if len(resp) != 1 || resp[0] != MsgPTTGranted {
 		t.Fatalf("bob: expected PTT_GRANTED after alice released, got %v", resp)
 	}
 
 	// Bob sends a chunk — alice should receive it.
 	sendMsg(t, bob, []byte{MsgMediaChunk, 0xFF})
-	resp = readMsg(t, alice)
+	resp = readMsgSkip(t, alice)
 	if resp[0] != MsgRelayChunk || resp[1] != 0xFF {
 		t.Fatalf("alice: expected relay chunk [13 FF], got %v", resp)
+	}
+}
+
+func TestPeerInfoOnJoinAndLeave(t *testing.T) {
+	ts, _ := setupTestServer(t)
+
+	alice := dial(t, ts, "room1", "alice")
+
+	// Alice should receive PEER_INFO on her own join.
+	resp := readMsg(t, alice)
+	if len(resp) < 1 || resp[0] != MsgPeerInfo {
+		t.Fatalf("alice: expected PEER_INFO (0x%02x) on self join, got 0x%02x", MsgPeerInfo, resp[0])
+	}
+
+	// Bob joins — alice should receive another PEER_INFO.
+	_ = dial(t, ts, "room1", "bob")
+	resp = readMsg(t, alice)
+	if len(resp) < 1 || resp[0] != MsgPeerInfo {
+		t.Fatalf("alice: expected PEER_INFO (0x%02x) on bob join, got 0x%02x", MsgPeerInfo, resp[0])
 	}
 }

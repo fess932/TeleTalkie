@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
 	"log"
 	"net/http"
@@ -26,6 +27,12 @@ const (
 	MsgRelayChunk  byte = 0x13 // медиа-чанк для listener'а
 	MsgPeerInfo    byte = 0x14 // JSON: список участников
 )
+
+// peerInfoPayload — JSON-структура для PEER_INFO сообщения.
+type peerInfoPayload struct {
+	Peers  []string `json:"peers"`
+	Talker string   `json:"talker"`
+}
 
 // Server — HTTP + WebSocket сервер TeleTalkie.
 type Server struct {
@@ -82,12 +89,18 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	// Запускаем write-loop в отдельной горутине.
 	go s.writeLoop(ctx, conn, peer)
 
+	// Оповещаем всех в комнате о новом участнике.
+	s.broadcastPeerInfo(peer.Room)
+
 	// Read-loop блокирует текущую горутину.
 	s.readLoop(ctx, conn, peer)
 
 	// Клиент отключился — убираем из комнаты.
 	s.hub.Leave(peer)
 	conn.CloseNow()
+
+	// Оповещаем оставшихся участников.
+	s.broadcastPeerInfo(peer.Room)
 }
 
 // readLoop читает сообщения из WebSocket, парсит тип и обрабатывает.
@@ -157,6 +170,8 @@ func (s *Server) handlePTTOn(ctx context.Context, conn *websocket.Conn, peer *ro
 		writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		conn.Write(writeCtx, websocket.MessageBinary, []byte{MsgPTTGranted})
 		cancel()
+		// Оповещаем всех кто сейчас говорит.
+		s.broadcastPeerInfo(peer.Room)
 	} else {
 		// Эфир занят — отказ.
 		writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -170,6 +185,8 @@ func (s *Server) handlePTTOff(peer *room.Peer) {
 	peer.Room.Release(peer)
 	// Оповещаем всех остальных что эфир свободен.
 	peer.Room.Broadcast(peer, []byte{MsgPTTReleased})
+	// Обновляем список участников (talker сброшен).
+	s.broadcastPeerInfo(peer.Room)
 }
 
 // handleMediaChunk — relay медиа-чанка от talker'а ко всем.
@@ -183,4 +200,37 @@ func (s *Server) handleMediaChunk(peer *room.Peer, payload []byte) {
 	msg[0] = MsgRelayChunk
 	copy(msg[1:], payload)
 	peer.Room.Broadcast(peer, msg)
+}
+
+// broadcastPeerInfo рассылает PEER_INFO всем участникам комнаты.
+func (s *Server) broadcastPeerInfo(r *room.Room) {
+	peers := r.Peers()
+
+	names := make([]string, 0, len(peers))
+	for _, p := range peers {
+		names = append(names, p.Name)
+	}
+
+	talkerName := ""
+	if r.Talker != nil {
+		talkerName = r.Talker.Name
+	}
+
+	info := peerInfoPayload{
+		Peers:  names,
+		Talker: talkerName,
+	}
+
+	jsonData, err := json.Marshal(info)
+	if err != nil {
+		log.Printf("server: marshal peer info error: %v", err)
+		return
+	}
+
+	msg := make([]byte, 1+len(jsonData))
+	msg[0] = MsgPeerInfo
+	copy(msg[1:], jsonData)
+
+	// Рассылаем всем (sender=nil — получат все).
+	r.Broadcast(nil, msg)
 }
