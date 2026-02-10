@@ -1,0 +1,186 @@
+package server
+
+import (
+	"context"
+	"io/fs"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/coder/websocket"
+
+	"teletalkie/internal/room"
+)
+
+// Бинарный протокол: первый байт = тип сообщения.
+const (
+	// Client → Server
+	MsgPTTOn      byte = 0x01 // запрос эфира
+	MsgPTTOff     byte = 0x02 // освобождение эфира
+	MsgMediaChunk byte = 0x03 // медиа-чанк от talker'а
+
+	// Server → Client
+	MsgPTTGranted  byte = 0x10 // эфир захвачен
+	MsgPTTDenied   byte = 0x11 // эфир занят
+	MsgPTTReleased byte = 0x12 // эфир освободился
+	MsgRelayChunk  byte = 0x13 // медиа-чанк для listener'а
+	MsgPeerInfo    byte = 0x14 // JSON: список участников
+)
+
+// Server — HTTP + WebSocket сервер TeleTalkie.
+type Server struct {
+	hub  *room.Hub
+	mux  *http.ServeMux
+	addr string
+}
+
+// New создаёт новый сервер.
+func New(addr string, webFS fs.FS, hub *room.Hub) *Server {
+	s := &Server{
+		hub:  hub,
+		mux:  http.NewServeMux(),
+		addr: addr,
+	}
+
+	s.mux.Handle("/", http.FileServer(http.FS(webFS)))
+	s.mux.HandleFunc("/ws", s.handleWS)
+
+	return s
+}
+
+// ListenAndServe запускает HTTP-сервер.
+func (s *Server) ListenAndServe() error {
+	log.Printf("server: listening on %s", s.addr)
+	return http.ListenAndServe(s.addr, s.mux)
+}
+
+// handleWS — WebSocket upgrade и обслуживание клиента.
+func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
+	roomID := r.URL.Query().Get("room")
+	name := r.URL.Query().Get("name")
+
+	if roomID == "" || name == "" {
+		http.Error(w, "missing room or name query param", http.StatusBadRequest)
+		return
+	}
+
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		// Разрешаем любой origin для разработки.
+		InsecureSkipVerify: true,
+	})
+	if err != nil {
+		log.Printf("server: websocket accept error: %v", err)
+		return
+	}
+
+	peer := s.hub.Join(roomID, name)
+
+	// Контекст отменяется при закрытии соединения.
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	// Запускаем write-loop в отдельной горутине.
+	go s.writeLoop(ctx, conn, peer)
+
+	// Read-loop блокирует текущую горутину.
+	s.readLoop(ctx, conn, peer)
+
+	// Клиент отключился — убираем из комнаты.
+	s.hub.Leave(peer)
+	conn.CloseNow()
+}
+
+// readLoop читает сообщения из WebSocket, парсит тип и обрабатывает.
+func (s *Server) readLoop(ctx context.Context, conn *websocket.Conn, peer *room.Peer) {
+	for {
+		typ, data, err := conn.Read(ctx)
+		if err != nil {
+			log.Printf("server: read error for %q: %v", peer.Name, err)
+			return
+		}
+
+		// Ожидаем только бинарные сообщения.
+		if typ != websocket.MessageBinary {
+			log.Printf("server: ignoring non-binary message from %q", peer.Name)
+			continue
+		}
+
+		if len(data) == 0 {
+			continue
+		}
+
+		msgType := data[0]
+		payload := data[1:]
+
+		switch msgType {
+		case MsgPTTOn:
+			s.handlePTTOn(ctx, conn, peer)
+
+		case MsgPTTOff:
+			s.handlePTTOff(peer)
+
+		case MsgMediaChunk:
+			s.handleMediaChunk(peer, payload)
+
+		default:
+			log.Printf("server: unknown message type 0x%02x from %q", msgType, peer.Name)
+		}
+	}
+}
+
+// writeLoop читает из канала peer.Send и пишет в WebSocket.
+func (s *Server) writeLoop(ctx context.Context, conn *websocket.Conn, peer *room.Peer) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg, ok := <-peer.Send:
+			if !ok {
+				// Канал закрыт — peer покинул комнату.
+				return
+			}
+			writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			err := conn.Write(writeCtx, websocket.MessageBinary, msg)
+			cancel()
+			if err != nil {
+				log.Printf("server: write error for %q: %v", peer.Name, err)
+				return
+			}
+		}
+	}
+}
+
+// handlePTTOn — peer запрашивает эфир.
+func (s *Server) handlePTTOn(ctx context.Context, conn *websocket.Conn, peer *room.Peer) {
+	if peer.Room.TryAcquire(peer) {
+		// Эфир захвачен — подтверждаем talker'у.
+		writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		conn.Write(writeCtx, websocket.MessageBinary, []byte{MsgPTTGranted})
+		cancel()
+	} else {
+		// Эфир занят — отказ.
+		writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		conn.Write(writeCtx, websocket.MessageBinary, []byte{MsgPTTDenied})
+		cancel()
+	}
+}
+
+// handlePTTOff — peer освобождает эфир.
+func (s *Server) handlePTTOff(peer *room.Peer) {
+	peer.Room.Release(peer)
+	// Оповещаем всех остальных что эфир свободен.
+	peer.Room.Broadcast(peer, []byte{MsgPTTReleased})
+}
+
+// handleMediaChunk — relay медиа-чанка от talker'а ко всем.
+func (s *Server) handleMediaChunk(peer *room.Peer, payload []byte) {
+	// Только текущий talker может слать чанки.
+	if peer.Room.Talker != peer {
+		return
+	}
+	// Оборачиваем в серверный тип и рассылаем.
+	msg := make([]byte, 1+len(payload))
+	msg[0] = MsgRelayChunk
+	copy(msg[1:], payload)
+	peer.Room.Broadcast(peer, msg)
+}

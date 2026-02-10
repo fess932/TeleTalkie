@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>TeleTalkie</title>
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <!-- Экран входа -->
+        <div id="login-screen" class="screen">
+            <div class="login-box">
+                <h1>📻 TeleTalkie</h1>
+                <p class="subtitle">Видеорация</p>
+                <input
+                    type="text"
+                    id="name-input"
+                    placeholder="Имя"
+                    maxlength="32"
+                    autocomplete="off"
+                />
+                <input
+                    type="text"
+                    id="room-input"
+                    placeholder="Комната"
+                    maxlength="32"
+                    autocomplete="off"
+                />
+                <button id="join-btn">Войти</button>
+                <p id="login-error" class="error" hidden></p>
+            </div>
+        </div>
+
+        <!-- Экран комнаты -->
+        <div id="room-screen" class="screen" hidden>
+            <header>
+                <span id="room-name"></span>
+                <span id="user-name"></span>
+            </header>
+
+            <div id="video-container">
+                <video id="remote-video" autoplay playsinline></video>
+                <div id="talker-label" hidden>
+                    Говорит: <span id="talker-name"></span>
+                </div>
+                <div id="no-stream">Эфир свободен</div>
+            </div>
+
+            <div id="controls">
+                <button id="ptt-btn" disabled>Зажми чтобы говорить</button>
+                <div id="status"></div>
+            </div>
+
+            <div id="peers-panel">
+                <h3>Участники</h3>
+                <ul id="peers-list"></ul>
+            </div>
+        </div>
+
+        <script src="app.js"></script>
+    </body>
+</html>
