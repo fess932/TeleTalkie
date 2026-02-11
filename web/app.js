@@ -431,7 +431,7 @@ async function ensureLocalStream() {
     console.error("[media] ❌ getUserMedia failed:", err.name, err.message);
     statusEl.textContent = "Нет доступа к камере/микрофону";
     throw err;
-  } // tes
+  } // te
 }
 
 function releaseLocalStream() {
