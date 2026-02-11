@@ -998,11 +998,18 @@ function trimBuffer(force) {
 }
 
 function onRelayChunk(payload) {
-  if (!mediaSource) {
+  // Если MSE не готов или был сброшен — пересоздаём
+  if (!mediaSource || !mseReady) {
     // Первый чанк нового стрима — инициализируем MSE
-    console.log("[mse] first chunk received, initializing MSE");
+    console.log("[mse] new stream, initializing MSE");
     noStreamEl.hidden = true;
     talkerLabel.hidden = false;
+
+    // Полностью очищаем старый MSE если он был
+    if (mediaSource) {
+      teardownMSE();
+    }
+
     initMSE();
   }
 
