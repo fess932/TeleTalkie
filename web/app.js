@@ -55,6 +55,9 @@ const unmuteBtn = document.getElementById("unmute-btn");
 const rotateBtn = document.getElementById("rotate-btn");
 const refreshBtn = document.getElementById("refresh-btn");
 const refreshBtnLogin = document.getElementById("refresh-btn-login");
+const volumeSlider = document.getElementById("volume-slider");
+const volumeValue = document.getElementById("volume-value");
+const mutedIndicator = document.getElementById("muted-indicator");
 
 // ── PTT звуки рации (WAV файлы) ──
 const pttStartSound = new Audio("/start.wav");
@@ -215,6 +218,54 @@ rotateBtn.addEventListener("click", () => {
 
   console.log("[video] rotated to", videoRotation, "degrees");
 });
+
+// Volume control
+function updateVolumeDisplay() {
+  const volume = remoteVideo.volume;
+  const isMuted = remoteVideo.muted;
+
+  volumeValue.textContent = Math.round(volume * 100) + "%";
+  volumeSlider.value = volume * 100;
+
+  // Обновляем индикатор muted
+  if (isMuted || volume === 0) {
+    mutedIndicator.textContent = "🔇";
+    mutedIndicator.title = "Звук выключен";
+  } else if (volume < 0.3) {
+    mutedIndicator.textContent = "🔈";
+    mutedIndicator.title = "Тихо";
+  } else if (volume < 0.7) {
+    mutedIndicator.textContent = "🔉";
+    mutedIndicator.title = "Средняя громкость";
+  } else {
+    mutedIndicator.textContent = "🔊";
+    mutedIndicator.title = "Громко";
+  }
+}
+
+// Слайдер громкости
+volumeSlider.addEventListener("input", (e) => {
+  const volume = e.target.value / 100;
+  remoteVideo.volume = volume;
+  if (volume > 0 && remoteVideo.muted) {
+    remoteVideo.muted = false;
+  }
+  updateVolumeDisplay();
+  console.log("[volume] set to", Math.round(volume * 100) + "%");
+});
+
+// Клик по индикатору muted - toggle mute
+mutedIndicator.addEventListener("click", () => {
+  remoteVideo.muted = !remoteVideo.muted;
+  updateVolumeDisplay();
+  console.log("[volume] muted:", remoteVideo.muted);
+});
+
+// Отслеживаем изменения volume/muted из других источников
+remoteVideo.addEventListener("volumechange", updateVolumeDisplay);
+
+// Инициализация при загрузке
+updateVolumeDisplay();
 
 // Unmute / Play button — handles both unmuting and starting playback on iOS
 unmuteBtn.addEventListener("click", () => {
