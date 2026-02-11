@@ -484,7 +484,7 @@ async function startTalking() {
     try {
       recorder = new MediaRecorder(stream, {
         mimeType,
-        videoBitsPerSecond: 500_000, // 500kbps
+        videoBitsPerSecond: 400_000, // 400kbps для меньших чанков
       });
     } catch (err) {
       console.error(
@@ -520,8 +520,8 @@ async function startTalking() {
       console.log("[media] recording started, mimeType:", mimeType);
     };
 
-    // Запускаем с меньшим интервалом для более быстрой отправки init segment
-    recorder.start(100); // чанк каждые 100мс
+    // Запускаем с интервалом 200мс для стабильных чанков ~10KB
+    recorder.start(200); // чанк каждые 200мс
   } catch (err) {
     console.error("[media] startTalking error:", err);
     // getUserMedia не дали — отпускаем эфир

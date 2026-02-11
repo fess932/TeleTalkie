@@ -103,7 +103,12 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		// Разрешаем любой origin для разработки.
 		InsecureSkipVerify: true,
+		// Увеличиваем лимит для видео-чанков (по умолчанию 32KB).
+		// Типичный размер чанка: 50-500KB для видео.
+		CompressionMode: websocket.CompressionDisabled, // отключаем сжатие для бинарных данных
 	})
+	// Устанавливаем лимит чтения после Accept
+	conn.SetReadLimit(2 * 1024 * 1024) // 2MB
 	if err != nil {
 		log.Printf("server: websocket accept error: %v", err)
 		return
