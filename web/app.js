@@ -1,5 +1,16 @@
 // TeleTalkie — app.js
 
+// ── Мобильная отладка (eruda) — активируется через ?debug в URL ──
+if (location.search.includes("debug")) {
+  const script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/eruda";
+  script.onload = () => {
+    window.eruda.init();
+    console.log("[debug] eruda console loaded");
+  };
+  document.head.appendChild(script);
+}
+
 // ── Service Worker регистрация ──
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker
@@ -57,41 +68,51 @@ let sourceBuffer = null;
 let chunkQueue = [];
 let mseReady = false;
 
-// ── Выбор mimeType для MediaRecorder и MSE (ЕДИНЫЙ список) ──
+// ── Выбор mimeType для MediaRecorder и MSE (РАЗДЕЛЬНО) ──
 // Порядок важен: сначала Safari-совместимые форматы, потом остальные
 const MIME_CANDIDATES = [
   // H.264 для Safari/iOS (лучшая совместимость)
+  "video/mp4", // Общий MP4 — 100% работает на iOS
   "video/mp4;codecs=avc1.42E01E,mp4a.40.2", // H.264 Baseline + AAC
   "video/mp4;codecs=avc1.4d002a,mp4a.40.2", // H.264 Main + AAC
-  "video/mp4;codecs=avc1.42E01E", // H.264 только видео
-  "video/mp4", // Общий MP4
   // VP8/VP9 для Chrome/Firefox
-  "video/webm;codecs=vp9,opus",
   "video/webm;codecs=vp8,opus",
+  "video/webm;codecs=vp9,opus",
   "video/webm;codecs=vp8",
   "video/webm",
 ];
 
-function pickMimeType() {
-  console.log("[media] detecting codec support...");
+function pickRecorderMimeType() {
+  console.log("[media] detecting MediaRecorder codec support...");
 
-  // Выбираем первый формат, который поддерживается И для записи, И для воспроизведения
   for (const mime of MIME_CANDIDATES) {
-    const recorderSupported = MediaRecorder.isTypeSupported(mime);
-    const mseSupported = MediaSource.isTypeSupported(mime);
+    const supported = MediaRecorder.isTypeSupported(mime);
+    console.log(`[media] recorder: ${mime} = ${supported}`);
 
-    console.log(
-      `[media] ${mime}: recorder=${recorderSupported}, mse=${mseSupported}`,
-    );
-
-    if (recorderSupported && mseSupported) {
-      console.log("[media] ✅ selected mimeType:", mime);
+    if (supported) {
+      console.log("[media] ✅ selected recorder mimeType:", mime);
       return mime;
     }
   }
 
-  console.error("[media] ❌ no common mimeType found!");
-  console.log("[media] Your browser may not support video streaming");
+  console.error("[media] ❌ no supported mimeType for MediaRecorder!");
+  return "";
+}
+
+function pickMSEMimeType() {
+  console.log("[media] detecting MSE codec support...");
+
+  for (const mime of MIME_CANDIDATES) {
+    const supported = MediaSource.isTypeSupported(mime);
+    console.log(`[media] mse: ${mime} = ${supported}`);
+
+    if (supported) {
+      console.log("[media] ✅ selected MSE mimeType:", mime);
+      return mime;
+    }
+  }
+
+  console.error("[media] ❌ no supported mimeType for MSE!");
   return "";
 }
 
@@ -431,7 +452,7 @@ async function ensureLocalStream() {
     console.error("[media] ❌ getUserMedia failed:", err.name, err.message);
     statusEl.textContent = "Нет доступа к камере/микрофону";
     throw err;
-  } // te
+  }
 }
 
 function releaseLocalStream() {
@@ -445,7 +466,7 @@ async function startTalking() {
   try {
     const stream = await ensureLocalStream();
 
-    const mimeType = pickMimeType();
+    const mimeType = pickRecorderMimeType();
     if (!mimeType) {
       console.error("[media] ❌ no supported mimeType for MediaRecorder");
       statusEl.textContent = "Браузер не поддерживает запись видео";
@@ -527,8 +548,8 @@ function initMSE() {
   remoteVideo.src = URL.createObjectURL(mediaSource);
 
   mediaSource.addEventListener("sourceopen", () => {
-    // Используем ту же функцию выбора MIME-типа
-    const mime = pickMimeType();
+    // Используем функцию выбора MIME-типа для MSE
+    const mime = pickMSEMimeType();
     if (!mime) {
       console.error("[mse] no supported mimeType");
       return;
