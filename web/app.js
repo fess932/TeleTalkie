@@ -1011,6 +1011,15 @@ function onRelayChunk(payload) {
     }
 
     initMSE();
+
+    // Добавляем чанк в очередь и ждём пока MSE станет готов
+    console.log(
+      "[mse] queueing chunk until MSE ready, size:",
+      payload.byteLength,
+    );
+    chunkQueue.push(payload.buffer);
+    // flushQueue будет вызван автоматически в sourceopen event
+    return;
   }
 
   console.log("[mse] received chunk, size:", payload.byteLength);
