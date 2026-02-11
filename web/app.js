@@ -786,6 +786,7 @@ function initMSE() {
 
       // Если видео в состоянии waiting и есть буферизованные данные, пробуем продолжить
       if (
+        sourceBuffer &&
         remoteVideo.readyState < remoteVideo.HAVE_FUTURE_DATA &&
         sourceBuffer.buffered.length > 0
       ) {
@@ -806,8 +807,8 @@ function initMSE() {
 
     sourceBuffer.addEventListener("error", (e) => {
       console.error("[mse] sourceBuffer error:", e);
-      // При ошибке полностью пересоздаём MSE
-      teardownMSE();
+      // При ошибке полностью пересоздаём MSE (отложенно, чтобы выйти из callback)
+      setTimeout(() => teardownMSE(), 0);
     });
 
     mseReady = true;
@@ -822,8 +823,8 @@ function initMSE() {
 
   mediaSource.addEventListener("error", (e) => {
     console.error("[mse] MediaSource error:", e);
-    // При ошибке полностью пересоздаём MSE
-    teardownMSE();
+    // При ошибке полностью пересоздаём MSE (отложенно, чтобы выйти из callback)
+    setTimeout(() => teardownMSE(), 0);
   });
 
   // Обработка событий video элемента
