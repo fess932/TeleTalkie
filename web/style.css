@@ -258,22 +258,16 @@ body {
     position: relative;
 }
 
-#ptt-mode {
+#mode-btn {
     position: absolute;
     left: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.mode-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border: 2px solid #2a2a4a;
     border-radius: 8px;
     background: transparent;
-    color: #666;
-    font-size: 18px;
+    color: #888;
+    font-size: 20px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -281,12 +275,17 @@ body {
     transition: all 0.2s;
 }
 
-.mode-btn:hover {
+#mode-btn:hover {
     border-color: #e94560;
     color: #e94560;
+    transform: scale(1.05);
 }
 
-.mode-btn.active {
+#mode-btn:active {
+    transform: scale(0.95);
+}
+
+#mode-btn[data-mode="toggle"] {
     border-color: #e94560;
     background: #e94560;
     color: #fff;

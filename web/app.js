@@ -411,26 +411,28 @@ function pttToggle() {
   }
 }
 
-// PTT mode buttons
-document.querySelectorAll(".mode-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const mode = btn.dataset.mode;
-    if (pttMode === mode) return; // уже активен
+// PTT mode toggle button
+const modeBtn = document.getElementById("mode-btn");
+modeBtn.addEventListener("click", () => {
+  // Переключаем режим
+  if (pttMode === "hold") {
+    pttMode = "toggle";
+    modeBtn.dataset.mode = "toggle";
+    modeBtn.textContent = "⏯";
+    modeBtn.title = "Переключение";
+  } else {
+    pttMode = "hold";
+    modeBtn.dataset.mode = "hold";
+    modeBtn.textContent = "⏺";
+    modeBtn.title = "Удержание";
+  }
 
-    pttMode = mode;
-    console.log("[ptt] mode changed to:", pttMode);
+  console.log("[ptt] mode changed to:", pttMode);
 
-    // Обновляем визуальное состояние кнопок
-    document
-      .querySelectorAll(".mode-btn")
-      .forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    // Если переключили режим пока говорим — отпускаем
-    if (pttState !== "idle") {
-      pttUp();
-    }
-  });
+  // Если переключили режим пока говорим — отпускаем
+  if (pttState !== "idle") {
+    pttUp();
+  }
 });
 
 // Mouse events
