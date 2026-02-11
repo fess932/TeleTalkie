@@ -51,6 +51,7 @@ const talkerNameEl = document.getElementById("talker-name");
 const noStreamEl = document.getElementById("no-stream");
 const peersList = document.getElementById("peers-list");
 const unmuteBtn = document.getElementById("unmute-btn");
+const rotateBtn = document.getElementById("rotate-btn");
 const refreshBtn = document.getElementById("refresh-btn");
 const refreshBtnLogin = document.getElementById("refresh-btn-login");
 
@@ -188,6 +189,26 @@ leaveBtn.addEventListener("click", () => {
 // Refresh buttons
 refreshBtn.addEventListener("click", () => location.reload());
 refreshBtnLogin.addEventListener("click", () => location.reload());
+
+// Rotate video button
+let videoRotation = 0; // 0, 90, 180, 270
+rotateBtn.addEventListener("click", () => {
+  videoRotation = (videoRotation + 90) % 360;
+
+  // Убираем все классы поворота
+  remoteVideo.classList.remove("rotate-90", "rotate-180", "rotate-270");
+
+  // Добавляем нужный класс
+  if (videoRotation === 90) {
+    remoteVideo.classList.add("rotate-90");
+  } else if (videoRotation === 180) {
+    remoteVideo.classList.add("rotate-180");
+  } else if (videoRotation === 270) {
+    remoteVideo.classList.add("rotate-270");
+  }
+
+  console.log("[video] rotated to", videoRotation, "degrees");
+});
 
 // Unmute / Play button — handles both unmuting and starting playback on iOS
 unmuteBtn.addEventListener("click", () => {
@@ -551,11 +572,15 @@ async function ensureLocalStream() {
 
   try {
     console.log("[media] requesting camera/mic access...");
+    // Определяем является ли устройство iOS/iPad
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
     localStream = await navigator.mediaDevices.getUserMedia({
       video: {
         width: { ideal: 640 },
         height: { ideal: 480 },
         frameRate: { ideal: 15, max: 30 },
+        facingMode: isIOS ? "user" : undefined, // На iOS используем фронтальную камеру
       },
       audio: {
         echoCancellation: true,

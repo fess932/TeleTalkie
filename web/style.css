@@ -197,6 +197,19 @@ body {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+#remote-video.rotate-90 {
+    transform: rotate(90deg);
+}
+
+#remote-video.rotate-180 {
+    transform: rotate(180deg);
+}
+
+#remote-video.rotate-270 {
+    transform: rotate(270deg);
 }
 
 #talker-label {
@@ -235,6 +248,34 @@ body {
 
 #unmute-btn:active {
     transform: translateX(-50%) scale(0.98);
+}
+
+#rotate-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    background: rgba(22, 33, 62, 0.8);
+    color: #e0e0e0;
+    border: none;
+    border-radius: 8px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+#rotate-btn:hover {
+    background: rgba(233, 69, 96, 0.9);
+    transform: scale(1.05);
+}
+
+#rotate-btn:active {
+    transform: scale(0.95);
 }
 
 #no-stream {
