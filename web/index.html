@@ -80,37 +80,17 @@
                 <button id="unmute-btn" hidden title="Включить звук">
                     🔇 Включить звук
                 </button>
-                <div
-                    id="volume-control"
-                    style="
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 8px;
-                        padding: 8px;
-                        background: rgba(0, 0, 0, 0.6);
-                        border-radius: 8px;
-                    "
-                >
-                    <span
-                        id="muted-indicator"
-                        style="font-size: 20px"
-                        title="Статус звука"
-                        >🔊</span
-                    >
+                <div id="volume-control">
+                    <span id="muted-indicator" title="Статус звука">🔊</span>
                     <input
                         type="range"
                         id="volume-slider"
                         min="0"
                         max="100"
                         value="100"
-                        style="width: 100px"
                         title="Громкость"
                     />
-                    <span
-                        id="volume-value"
-                        style="color: white; min-width: 35px"
-                        >100%</span
-                    >
+                    <span id="volume-value">100%</span>
                 </div>
                 <button id="rotate-btn" title="Повернуть видео">🔄</button>
                 <div id="no-stream">Эфир свободен</div>
