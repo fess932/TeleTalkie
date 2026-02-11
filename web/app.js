@@ -922,6 +922,15 @@ function initMSE() {
 
     mseReady = true;
     console.log("[mse] ready, mimeType:", mime);
+
+    // Логируем информацию о треках
+    if (sourceBuffer.audioTracks) {
+      console.log("[mse] audio tracks count:", sourceBuffer.audioTracks.length);
+    }
+    if (sourceBuffer.videoTracks) {
+      console.log("[mse] video tracks count:", sourceBuffer.videoTracks.length);
+    }
+
     flushQueue();
   });
 
@@ -1120,6 +1129,16 @@ function onRelayChunk(payload) {
     "time:",
     now.toFixed(0),
   );
+
+  // Для первых нескольких чанков показываем hexdump для диагностики
+  if (chunkQueue.length < 2) {
+    const view = new Uint8Array(payload.buffer);
+    const hex = Array.from(view.slice(0, 16))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join(" ");
+    console.log("[mse] chunk header (first 16 bytes):", hex);
+  }
+
   chunkQueue.push(payload.buffer);
   flushQueue();
 
@@ -1142,10 +1161,28 @@ function onRelayChunk(payload) {
 
     console.log("[mse] attempting to play with audio...");
     remoteVideo.muted = false;
+    remoteVideo.volume = 1.0; // Убедимся что громкость на максимуме
     remoteVideo
       .play()
       .then(() => {
         console.log("[mse] playing with audio successfully");
+        console.log("[mse] video muted:", remoteVideo.muted);
+        console.log("[mse] video volume:", remoteVideo.volume);
+
+        // Проверяем аудио треки
+        if (remoteVideo.audioTracks) {
+          console.log(
+            "[mse] video.audioTracks count:",
+            remoteVideo.audioTracks.length,
+          );
+          for (let i = 0; i < remoteVideo.audioTracks.length; i++) {
+            console.log(
+              `[mse] audioTrack ${i} enabled:`,
+              remoteVideo.audioTracks[i].enabled,
+            );
+          }
+        }
+
         unmuteBtn.hidden = true;
       })
       .catch((err) => {
