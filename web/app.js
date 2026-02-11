@@ -90,7 +90,9 @@ function playPTTOff() {
 let ws = null;
 let localStream = null; // кэшированный MediaStream (камера+микрофон)
 let canvasStream = null; // stream с canvas для отправки
+let canvasElements = null; // { canvas, tempVideo } для cleanup
 let recorder = null; // MediaRecorder
+let recorderInitialized = false; // флаг что recorder создан с правильным stream
 let pttState = "idle"; // idle | requesting | talking
 let pttMode = "hold"; // hold | toggle
 let currentRoom = "";
@@ -115,6 +117,8 @@ const H264_MIME_CANDIDATES = [
 
 function pickRecorderMimeType() {
   console.log("[media] detecting H.264 MediaRecorder codec support...");
+  console.log("[media] platform:", navigator.platform);
+  console.log("[media] userAgent:", navigator.userAgent);
 
   for (const mime of H264_MIME_CANDIDATES) {
     const supported = MediaRecorder.isTypeSupported(mime);
@@ -598,7 +602,7 @@ function createCanvasStream(videoStream) {
     stream.addTrack(audioTrack);
   }
 
-  return { stream, canvas, tempVideo };
+  return { stream, canvas, tempVideo, renderFrame };
 }
 
 function stopCanvasStream() {
