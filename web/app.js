@@ -806,6 +806,8 @@ function initMSE() {
 
     sourceBuffer.addEventListener("error", (e) => {
       console.error("[mse] sourceBuffer error:", e);
+      // При ошибке полностью пересоздаём MSE
+      teardownMSE();
     });
 
     mseReady = true;
@@ -820,6 +822,8 @@ function initMSE() {
 
   mediaSource.addEventListener("error", (e) => {
     console.error("[mse] MediaSource error:", e);
+    // При ошибке полностью пересоздаём MSE
+    teardownMSE();
   });
 
   // Обработка событий video элемента
@@ -844,26 +848,45 @@ function initMSE() {
 }
 
 function teardownMSE() {
+  console.log("[mse] tearing down MSE");
   mseReady = false;
   chunkQueue = [];
 
+  // Сначала останавливаем video
+  remoteVideo.pause();
+
   if (sourceBuffer) {
     try {
-      sourceBuffer.abort();
+      // Удаляем все event listeners
+      sourceBuffer.onupdateend = null;
+      sourceBuffer.onerror = null;
+
+      // Пробуем abort только если mediaSource открыт
+      if (mediaSource && mediaSource.readyState === "open") {
+        sourceBuffer.abort();
+      }
     } catch (e) {
-      // ignore if not open
+      console.warn("[mse] sourceBuffer cleanup error:", e);
     }
     sourceBuffer = null;
   }
 
   if (mediaSource) {
-    if (mediaSource.readyState === "open") {
-      try {
-        mediaSource.endOfStream();
-      } catch (e) {
-        // ignore
+    try {
+      // Удаляем все sourceBuffers
+      if (mediaSource.readyState === "open") {
+        // Не вызываем endOfStream - это может вызвать ошибки
+        // Просто закрываем
       }
+    } catch (e) {
+      console.warn("[mse] mediaSource cleanup error:", e);
     }
+
+    // Удаляем event listeners
+    mediaSource.onsourceopen = null;
+    mediaSource.onsourceclose = null;
+    mediaSource.onerror = null;
+
     // Revoke object URL
     if (remoteVideo.src) {
       URL.revokeObjectURL(remoteVideo.src);
@@ -871,8 +894,12 @@ function teardownMSE() {
     mediaSource = null;
   }
 
+  // Полностью очищаем video element
   remoteVideo.removeAttribute("src");
+  remoteVideo.srcObject = null;
   remoteVideo.load();
+
+  console.log("[mse] teardown complete");
 }
 
 function flushQueue() {
