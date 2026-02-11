@@ -675,14 +675,10 @@ async function startTalking() {
     remoteVideo.hidden = true;
     noStreamEl.hidden = true;
 
-    // Создаём canvas stream для отправки
-    const { stream: canvasStreamObj } = createCanvasStream(stream);
-    canvasStream = canvasStreamObj;
-
-    console.log(
-      "[media] canvas stream created, tracks:",
-      canvasStream.getTracks().length,
-    );
+    // ВРЕМЕННО: отправляем оригинальный stream БЕЗ canvas для тестирования
+    // const { stream: canvasStreamObj } = createCanvasStream(stream);
+    // canvasStream = canvasStreamObj;
+    // console.log("[media] canvas stream created, tracks:", canvasStream.getTracks().length);
 
     const mimeType = pickRecorderMimeType();
     if (!mimeType) {
@@ -693,15 +689,15 @@ async function startTalking() {
       pttState = "idle";
       pttBtn.classList.remove("talking");
       wsSend(MSG.PTT_OFF);
-      stopCanvasStream();
+      // stopCanvasStream();
       return;
     }
 
     console.log("[media] creating MediaRecorder with:", mimeType);
 
     try {
-      // Записываем canvas stream вместо оригинального
-      recorder = new MediaRecorder(canvasStream, {
+      // ВРЕМЕННО: записываем оригинальный stream для тестирования
+      recorder = new MediaRecorder(stream, {
         mimeType,
         videoBitsPerSecond: 400_000, // 400kbps для меньших чанков
       });
