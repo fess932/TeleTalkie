@@ -58,24 +58,40 @@ let chunkQueue = [];
 let mseReady = false;
 
 // ── Выбор mimeType для MediaRecorder и MSE (ЕДИНЫЙ список) ──
+// Порядок важен: сначала Safari-совместимые форматы, потом остальные
 const MIME_CANDIDATES = [
+  // H.264 для Safari/iOS (лучшая совместимость)
+  "video/mp4;codecs=avc1.42E01E,mp4a.40.2", // H.264 Baseline + AAC
+  "video/mp4;codecs=avc1.4d002a,mp4a.40.2", // H.264 Main + AAC
+  "video/mp4;codecs=avc1.42E01E", // H.264 только видео
+  "video/mp4", // Общий MP4
+  // VP8/VP9 для Chrome/Firefox
+  "video/webm;codecs=vp9,opus",
   "video/webm;codecs=vp8,opus",
   "video/webm;codecs=vp8",
   "video/webm",
 ];
 
 function pickMimeType() {
+  console.log("[media] detecting codec support...");
+
   // Выбираем первый формат, который поддерживается И для записи, И для воспроизведения
   for (const mime of MIME_CANDIDATES) {
-    if (
-      MediaRecorder.isTypeSupported(mime) &&
-      MediaSource.isTypeSupported(mime)
-    ) {
-      console.log("[media] selected mimeType:", mime);
+    const recorderSupported = MediaRecorder.isTypeSupported(mime);
+    const mseSupported = MediaSource.isTypeSupported(mime);
+
+    console.log(
+      `[media] ${mime}: recorder=${recorderSupported}, mse=${mseSupported}`,
+    );
+
+    if (recorderSupported && mseSupported) {
+      console.log("[media] ✅ selected mimeType:", mime);
       return mime;
     }
   }
-  console.error("[media] no common mimeType found");
+
+  console.error("[media] ❌ no common mimeType found!");
+  console.log("[media] Your browser may not support video streaming");
   return "";
 }
 
@@ -394,15 +410,26 @@ async function ensureLocalStream() {
   if (localStream) return localStream;
 
   try {
+    console.log("[media] requesting camera/mic access...");
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
+      video: {
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        frameRate: { ideal: 15, max: 30 },
+      },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 48000,
+      },
     });
-    console.log("[media] got local stream");
+    console.log("[media] ✅ got local stream");
+    console.log("[media] video tracks:", localStream.getVideoTracks().length);
+    console.log("[media] audio tracks:", localStream.getAudioTracks().length);
     return localStream;
   } catch (err) {
-    console.error("[media] getUserMedia failed:", err);
-    statusEl.textContent = "Нет доступа к камере";
+    console.error("[media] ❌ getUserMedia failed:", err.name, err.message);
+    statusEl.textContent = "Нет доступа к камере/микрофону";
     throw err;
   }
 }
@@ -420,15 +447,37 @@ async function startTalking() {
 
     const mimeType = pickMimeType();
     if (!mimeType) {
-      console.error("[media] no supported mimeType for MediaRecorder");
-      statusEl.textContent = "Браузер не поддерживает запись";
+      console.error("[media] ❌ no supported mimeType for MediaRecorder");
+      statusEl.textContent = "Браузер не поддерживает запись видео";
+      alert(
+        "Ваш браузер не поддерживает запись видео. Попробуйте обновить iOS или использовать другой браузер.",
+      );
+      pttState = "idle";
+      pttBtn.classList.remove("talking");
+      wsSend(MSG.PTT_OFF);
       return;
     }
 
-    recorder = new MediaRecorder(stream, {
-      mimeType,
-      videoBitsPerSecond: 500_000, // 500kbps — разумно для рации
-    });
+    console.log("[media] creating MediaRecorder with:", mimeType);
+
+    try {
+      recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 500_000, // 500kbps
+      });
+    } catch (err) {
+      console.error(
+        "[media] ❌ MediaRecorder creation failed:",
+        err.name,
+        err.message,
+      );
+      statusEl.textContent = "Ошибка создания recorder";
+      alert("MediaRecorder не поддерживается: " + err.message);
+      pttState = "idle";
+      pttBtn.classList.remove("talking");
+      wsSend(MSG.PTT_OFF);
+      return;
+    }
 
     recorder.ondataavailable = async (e) => {
       if (e.data && e.data.size > 0 && pttState === "talking") {
@@ -664,17 +713,34 @@ function onRelayChunk(payload) {
   chunkQueue.push(payload.buffer);
   flushQueue();
 
-  // Попытка воспроизведения
+  // Попытка воспроизведения со звуком
   if (remoteVideo.paused) {
-    remoteVideo.play().catch((err) => {
-      console.log("[mse] autoplay blocked, trying with muted");
-      // Autoplay заблокирован — ставим muted и показываем кнопку unmute
-      remoteVideo.muted = true;
-      unmuteBtn.hidden = false;
-      remoteVideo.play().catch((e) => {
-        console.error("[mse] play error:", e.name, e.message);
+    console.log("[mse] attempting to play with audio...");
+    remoteVideo.muted = false;
+    remoteVideo
+      .play()
+      .then(() => {
+        console.log("[mse] playing with audio successfully");
+        unmuteBtn.hidden = true;
+      })
+      .catch((err) => {
+        console.log(
+          "[mse] autoplay with audio blocked:",
+          err.name,
+          "- trying muted",
+        );
+        // Autoplay со звуком заблокирован — пробуем без звука
+        remoteVideo.muted = true;
+        unmuteBtn.hidden = false;
+        remoteVideo
+          .play()
+          .then(() => {
+            console.log("[mse] playing muted, unmute button shown");
+          })
+          .catch((e) => {
+            console.error("[mse] play error even muted:", e.name, e.message);
+          });
       });
-    });
   }
 
   // Синхронизация с live-краем: если отстаём больше чем на 0.5 сек, перематываем
