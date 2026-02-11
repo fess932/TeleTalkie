@@ -704,9 +704,8 @@ async function startTalking() {
       recorder = new MediaRecorder(stream, {
         mimeType,
         videoBitsPerSecond: 400_000, // 400kbps для меньших чанков
-        // Пытаемся контролировать keyframe интервал (работает не везде)
+        // Контролируем keyframe интервал для более частых чанков
         videoKeyFrameIntervalDuration: 100, // keyframe каждые 100мс
-        videoKeyFrameIntervalCount: 3, // или каждые 3 фрейма (~100мс при 30fps)
       });
     } catch (err) {
       console.error(
