@@ -54,6 +54,70 @@ const unmuteBtn = document.getElementById("unmute-btn");
 const refreshBtn = document.getElementById("refresh-btn");
 const refreshBtnLogin = document.getElementById("refresh-btn-login");
 
+// ── PTT звуки рации (Web Audio API) ──
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+// Звук нажатия PTT — короткий "roger beep" вверх
+function playPTTOn() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.linearRampToValueAtTime(1200, now + 0.08);
+
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.12);
+
+    osc.start(now);
+    osc.stop(now + 0.12);
+  } catch (e) {
+    console.warn("[audio] ptt-on sound failed:", e);
+  }
+}
+
+// Звук отпускания PTT — двойной тон вниз
+function playPTTOff() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.linearRampToValueAtTime(600, now + 0.1);
+
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.setValueAtTime(0.3, now + 0.06);
+    gain.gain.linearRampToValueAtTime(0, now + 0.15);
+
+    osc.start(now);
+    osc.stop(now + 0.15);
+  } catch (e) {
+    console.warn("[audio] ptt-off sound failed:", e);
+  }
+}
+
 // ── Состояние ──
 let ws = null;
 let localStream = null; // кэшированный MediaStream (камера+микрофон)
@@ -350,11 +414,13 @@ function pttDown() {
   pttState = "requesting";
   pttBtn.classList.add("talking");
   statusEl.textContent = "Запрос эфира…";
+  playPTTOn();
   wsSend(MSG.PTT_ON);
 }
 
 function pttUp() {
   if (pttState === "talking") {
+    playPTTOff();
     stopTalking();
     wsSend(MSG.PTT_OFF);
     pttState = "idle";
@@ -465,7 +531,6 @@ async function ensureLocalStream() {
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
-        sampleRate: 48000,
       },
     });
     console.log("[media] ✅ got local stream");
