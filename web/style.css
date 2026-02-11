@@ -41,21 +41,27 @@ body {
 }
 
 .login-box {
-    background: #16213e;
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 24px;
     padding: 40px 32px;
     width: 320px;
     max-width: 90vw;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow:
+        0 8px 32px 0 rgba(31, 38, 135, 0.37),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .login-box h1 {
     text-align: center;
     font-size: 28px;
-    color: #e94560;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .login-box .subtitle {
@@ -67,17 +73,20 @@ body {
 
 .login-box input {
     padding: 12px 16px;
-    border: 2px solid #2a2a4a;
-    border-radius: 8px;
-    background: #0f3460;
-    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    color: #fff;
     font-size: 16px;
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.3s;
 }
 
 .login-box input:focus {
-    border-color: #e94560;
+    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
 }
 
 .login-box input::placeholder {
@@ -87,21 +96,24 @@ body {
 #join-btn {
     padding: 12px;
     border: none;
-    border-radius: 8px;
-    background: #e94560;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #fff;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.3s;
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
 }
 
 #join-btn:hover {
-    background: #c73652;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(102, 126, 234, 0.6);
 }
 
 #join-btn:active {
-    background: #a82a43;
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
 }
 
 .error {
@@ -271,28 +283,37 @@ body {
     position: absolute;
     top: 12px;
     right: 12px;
-    width: 40px;
-    height: 40px;
-    background: rgba(22, 33, 62, 0.8);
-    color: #e0e0e0;
-    border: none;
-    border-radius: 8px;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
     font-size: 20px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: all 0.3s;
     z-index: 10;
+    box-shadow:
+        0 4px 16px 0 rgba(31, 38, 135, 0.3),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 #rotate-btn:hover {
-    background: rgba(233, 69, 96, 0.9);
-    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.05) rotate(90deg);
+    box-shadow:
+        0 6px 24px 0 rgba(102, 126, 234, 0.4),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 #rotate-btn:active {
-    transform: scale(0.95);
+    transform: scale(0.95) rotate(90deg);
 }
 
 #no-stream {
@@ -318,23 +339,27 @@ body {
 #mode-btn {
     width: 50px;
     height: 50px;
-    border: 2px solid rgba(42, 42, 74, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
-    background: rgba(22, 33, 62, 0.7);
-    backdrop-filter: blur(10px);
-    color: #888;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    color: rgba(255, 255, 255, 0.7);
     font-size: 24px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+    box-shadow:
+        0 4px 16px 0 rgba(31, 38, 135, 0.3),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 #mode-btn:hover {
-    border-color: rgba(233, 69, 96, 0.9);
-    background: rgba(233, 69, 96, 0.3);
-    color: #e94560;
+    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
     transform: scale(1.05);
 }
 
@@ -343,19 +368,24 @@ body {
 }
 
 #mode-btn[data-mode="toggle"] {
-    border-color: rgba(233, 69, 96, 0.9);
-    background: rgba(233, 69, 96, 0.8);
+    border-color: rgba(255, 255, 255, 0.6);
+    background: linear-gradient(
+        135deg,
+        rgba(102, 126, 234, 0.6) 0%,
+        rgba(118, 75, 162, 0.6) 100%
+    );
     color: #fff;
 }
 
 #ptt-btn {
     width: 100px;
     height: 100px;
-    border: none;
+    border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
-    background: rgba(15, 52, 96, 0.8);
-    backdrop-filter: blur(10px);
-    color: #e0e0e0;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    color: #fff;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -365,8 +395,11 @@ body {
     transition:
         background 0.15s,
         transform 0.1s,
-        box-shadow 0.15s;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        box-shadow 0.15s,
+        border-color 0.15s;
+    box-shadow:
+        0 8px 32px 0 rgba(31, 38, 135, 0.37),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 #ptt-btn::before {
@@ -375,16 +408,27 @@ body {
 }
 
 #ptt-btn:not(:disabled):hover {
-    background: rgba(26, 74, 122, 0.9);
-    box-shadow: 0 6px 20px rgba(26, 74, 122, 0.5);
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.05);
+    box-shadow:
+        0 12px 40px 0 rgba(102, 126, 234, 0.5),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 #ptt-btn:not(:disabled):active,
 #ptt-btn.talking {
-    background: rgba(233, 69, 96, 0.9);
+    background: linear-gradient(
+        135deg,
+        rgba(102, 126, 234, 0.8) 0%,
+        rgba(118, 75, 162, 0.8) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.6);
     color: #fff;
     transform: scale(0.95);
-    box-shadow: 0 4px 20px rgba(233, 69, 96, 0.6);
+    box-shadow:
+        0 8px 32px 0 rgba(102, 126, 234, 0.7),
+        inset 0 2px 4px 0 rgba(255, 255, 255, 0.4);
 }
 
 #ptt-btn:disabled {
@@ -457,18 +501,19 @@ body {
 
 #volume-control {
     position: absolute;
-    top: 12px;
-    right: 70px;
+    bottom: 140px;
+    right: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    padding: 16px 12px;
+    gap: 8px;
+    padding: 12px 10px;
+    min-height: 180px;
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 16px;
+    border-radius: 20px;
     box-shadow:
         0 8px 32px 0 rgba(31, 38, 135, 0.37),
         inset 0 1px 1px 0 rgba(255, 255, 255, 0.3);
@@ -478,7 +523,10 @@ body {
 
 #volume-control:hover {
     background: rgba(255, 255, 255, 0.15);
-    transform: scale(1.02);
+    transform: translateY(-2px);
+    box-shadow:
+        0 12px 40px 0 rgba(31, 38, 135, 0.45),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 #muted-indicator {
@@ -486,10 +534,12 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    user-select: none;
 }
 
 #muted-indicator:hover {
-    transform: scale(1.1);
+    transform: scale(1.15);
+    filter: drop-shadow(0 4px 8px rgba(102, 126, 234, 0.6));
 }
 
 #muted-indicator:active {
@@ -497,16 +547,15 @@ body {
 }
 
 #volume-slider {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 140px;
-    height: 8px;
+    -webkit-appearance: slider-vertical;
+    width: 8px;
+    height: 100px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 4px;
     outline: none;
-    transform: rotate(-90deg);
     cursor: pointer;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    margin: 8px 0;
 }
 
 #volume-slider::-webkit-slider-thumb {
