@@ -44,7 +44,7 @@ const roomNameEl = document.getElementById("room-name");
 const userNameEl = document.getElementById("user-name");
 const leaveBtn = document.getElementById("leave-btn");
 const pttBtn = document.getElementById("ptt-btn");
-const statusEl = document.getElementById("status");
+// const statusEl = document.getElementById("status"); // removed from UI
 const remoteVideo = document.getElementById("remote-video");
 const talkerLabel = document.getElementById("talker-label");
 const talkerNameEl = document.getElementById("talker-name");
@@ -365,7 +365,7 @@ function showRoomScreen(roomID, name) {
   roomNameEl.textContent = roomID;
   userNameEl.textContent = name;
   pttBtn.disabled = false;
-  statusEl.textContent = "Подключено";
+  console.log("[room] connected");
 }
 
 function handleDisconnect() {
@@ -375,7 +375,7 @@ function handleDisconnect() {
 
   if (!loginScreen.hidden) return; // ещё на экране входа
 
-  statusEl.textContent = "Отключено — переподключение…";
+  console.log("[ws] disconnected, will reconnect...");
   pttBtn.disabled = true;
 
   // Автоматический реконнект
@@ -390,7 +390,6 @@ function scheduleReconnect() {
     reconnectTimer = null;
     if (roomScreen.hidden) return; // уже вышли на экран входа
     console.log("[ws] reconnecting...");
-    statusEl.textContent = "Переподключение…";
     connect(currentRoom, currentName);
   }, 2000);
 }
@@ -401,7 +400,7 @@ function pttDown() {
   if (pttState !== "idle") return;
   pttState = "requesting";
   pttBtn.classList.add("talking");
-  statusEl.textContent = "Запрос эфира…";
+  console.log("[ptt] requesting...");
   playPTTOn();
   wsSend(MSG.PTT_ON);
 }
@@ -413,14 +412,14 @@ function pttUp() {
     wsSend(MSG.PTT_OFF);
     pttState = "idle";
     pttBtn.classList.remove("talking");
-    statusEl.textContent = "Подключено";
+    console.log("[ptt] released");
   } else if (pttState === "requesting") {
     // Отпустили до получения ответа — всё равно шлём OFF
     playPTTOff();
     wsSend(MSG.PTT_OFF);
     pttState = "idle";
     pttBtn.classList.remove("talking");
-    statusEl.textContent = "Подключено";
+    console.log("[ptt] cancelled");
   }
 }
 
@@ -540,26 +539,19 @@ function onPTTGranted() {
     return;
   }
   pttState = "talking";
-  statusEl.textContent = "🔴 Вы в эфире";
+  console.log("[ptt] now talking");
   startTalking();
 }
 
 function onPTTDenied() {
-  console.log("[ptt] denied");
+  console.log("[ptt] denied - channel busy");
   pttState = "idle";
   pttBtn.classList.remove("talking");
-  statusEl.textContent = "Эфир занят";
-  setTimeout(() => {
-    if (pttState === "idle") statusEl.textContent = "Подключено";
-  }, 1500);
 }
 
 function onPTTReleased() {
-  console.log("[ptt] released");
+  console.log("[ptt] channel released");
   currentTalker = "";
-  if (pttState === "idle") {
-    statusEl.textContent = "Эфир свободен";
-  }
   talkerLabel.hidden = true;
   noStreamEl.hidden = false;
   teardownMSE();
@@ -593,7 +585,7 @@ async function ensureLocalStream() {
     return localStream;
   } catch (err) {
     console.error("[media] ❌ getUserMedia failed:", err.name, err.message);
-    statusEl.textContent = "Нет доступа к камере/микрофону";
+    alert("Нет доступа к камере/микрофону: " + err.message);
     throw err;
   }
 }
@@ -612,7 +604,6 @@ async function startTalking() {
     const mimeType = pickRecorderMimeType();
     if (!mimeType) {
       console.error("[media] ❌ no supported mimeType for MediaRecorder");
-      statusEl.textContent = "Браузер не поддерживает запись видео";
       alert(
         "Ваш браузер не поддерживает запись видео. Попробуйте обновить iOS или использовать другой браузер.",
       );
@@ -635,7 +626,6 @@ async function startTalking() {
         err.name,
         err.message,
       );
-      statusEl.textContent = "Ошибка создания recorder";
       alert("MediaRecorder не поддерживается: " + err.message);
       pttState = "idle";
       pttBtn.classList.remove("talking");
