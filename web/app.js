@@ -723,11 +723,22 @@ async function startTalking() {
       if (e.data && e.data.size > 0 && pttState === "talking") {
         try {
           const buf = await e.data.arrayBuffer();
-          console.log("[media] sending chunk, size:", buf.byteLength);
+          const now = performance.now();
+          console.log(
+            "[media] sending chunk, size:",
+            buf.byteLength,
+            "time:",
+            now.toFixed(0),
+          );
           wsSend(MSG.MEDIA_CHUNK, buf);
         } catch (err) {
           console.error("[media] chunk read error:", err);
         }
+      } else {
+        console.warn(
+          "[media] ondataavailable but no data or not talking, size:",
+          e.data?.size,
+        );
       }
     };
 
@@ -753,9 +764,9 @@ async function startTalking() {
       console.log("[media] recording stopped");
     };
 
-    // Запускаем с интервалом 200мс для стабильных чанков ~10KB
-    console.log("[media] starting recorder...");
-    recorder.start(200); // чанк каждые 200мс
+    // Запускаем с интервалом 100мс для более частых чанков (меньше задержка)
+    console.log("[media] starting recorder with 100ms timeslice...");
+    recorder.start(100); // чанк каждые 100мс
   } catch (err) {
     console.error("[media] startTalking error:", err);
     // getUserMedia не дали — отпускаем эфир
