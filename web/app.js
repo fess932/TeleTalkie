@@ -704,6 +704,9 @@ async function startTalking() {
       recorder = new MediaRecorder(stream, {
         mimeType,
         videoBitsPerSecond: 400_000, // 400kbps для меньших чанков
+        // Пытаемся контролировать keyframe интервал (работает не везде)
+        videoKeyFrameIntervalDuration: 100, // keyframe каждые 100мс
+        videoKeyFrameIntervalCount: 3, // или каждые 3 фрейма (~100мс при 30fps)
       });
     } catch (err) {
       console.error(
@@ -719,17 +722,22 @@ async function startTalking() {
       return;
     }
 
+    let lastChunkTime = performance.now();
+    let chunkCount = 0;
+
     recorder.ondataavailable = async (e) => {
       if (e.data && e.data.size > 0 && pttState === "talking") {
         try {
           const buf = await e.data.arrayBuffer();
           const now = performance.now();
+          const deltaMs = now - lastChunkTime;
+          chunkCount++;
+
           console.log(
-            "[media] sending chunk, size:",
-            buf.byteLength,
-            "time:",
-            now.toFixed(0),
+            `[media] chunk #${chunkCount}, size: ${buf.byteLength}, delta: ${deltaMs.toFixed(0)}ms, time: ${now.toFixed(0)}`,
           );
+
+          lastChunkTime = now;
           wsSend(MSG.MEDIA_CHUNK, buf);
         } catch (err) {
           console.error("[media] chunk read error:", err);
@@ -766,7 +774,15 @@ async function startTalking() {
 
     // Запускаем с интервалом 100мс для более частых чанков (меньше задержка)
     console.log("[media] starting recorder with 100ms timeslice...");
+    const recorderStartTime = performance.now();
+    console.log(
+      "[media] recorder.start() called at:",
+      recorderStartTime.toFixed(0),
+    );
     recorder.start(100); // чанк каждые 100мс
+
+    // Обновляем lastChunkTime на момент старта рекордера
+    lastChunkTime = recorderStartTime;
   } catch (err) {
     console.error("[media] startTalking error:", err);
     // getUserMedia не дали — отпускаем эфир
