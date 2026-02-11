@@ -129,7 +129,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 20px;
+    padding: 8px 16px;
     background: #16213e;
     border-top: 1px solid #2a2a4a;
     flex-shrink: 0;
@@ -138,7 +138,7 @@ body {
 
 #room-name {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 13px;
     color: #e94560;
     flex: 1;
 }
@@ -148,19 +148,19 @@ body {
 }
 
 #user-name {
-    font-size: 14px;
+    font-size: 12px;
     color: #888;
 }
 
 .header-btn,
 #leave-btn {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     background: #0f3460;
     color: #e94560;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: bold;
     cursor: pointer;
     display: flex;
@@ -191,6 +191,7 @@ body {
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    min-height: 0;
 }
 
 #remote-video {
@@ -285,30 +286,28 @@ body {
     pointer-events: none;
 }
 
-/* Управление */
+/* PTT overlay поверх видео */
 
-#controls {
+#ptt-overlay {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 20px;
-    padding: 20px;
-    background: #16213e;
-    border-top: 1px solid #2a2a4a;
-    flex-shrink: 0;
-    position: relative;
+    gap: 16px;
+    z-index: 10;
 }
 
 #mode-btn {
-    position: absolute;
-    left: 20px;
-    width: 40px;
-    height: 40px;
-    border: 2px solid #2a2a4a;
-    border-radius: 8px;
-    background: transparent;
+    width: 50px;
+    height: 50px;
+    border: 2px solid rgba(42, 42, 74, 0.8);
+    border-radius: 50%;
+    background: rgba(22, 33, 62, 0.7);
+    backdrop-filter: blur(10px);
     color: #888;
-    font-size: 20px;
+    font-size: 24px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -317,7 +316,8 @@ body {
 }
 
 #mode-btn:hover {
-    border-color: #e94560;
+    border-color: rgba(233, 69, 96, 0.9);
+    background: rgba(233, 69, 96, 0.3);
     color: #e94560;
     transform: scale(1.05);
 }
@@ -327,17 +327,18 @@ body {
 }
 
 #mode-btn[data-mode="toggle"] {
-    border-color: #e94560;
-    background: #e94560;
+    border-color: rgba(233, 69, 96, 0.9);
+    background: rgba(233, 69, 96, 0.8);
     color: #fff;
 }
 
 #ptt-btn {
-    width: 120px;
-    height: 120px;
+    width: 100px;
+    height: 100px;
     border: none;
     border-radius: 50%;
-    background: #0f3460;
+    background: rgba(15, 52, 96, 0.8);
+    backdrop-filter: blur(10px);
     color: #e0e0e0;
     font-size: 14px;
     font-weight: 600;
@@ -349,70 +350,65 @@ body {
         background 0.15s,
         transform 0.1s,
         box-shadow 0.15s;
-    box-shadow: 0 4px 16px rgba(15, 52, 96, 0.4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 #ptt-btn::before {
     content: "📻";
-    font-size: 48px;
+    font-size: 40px;
 }
 
 #ptt-btn:not(:disabled):hover {
-    background: #1a4a7a;
+    background: rgba(26, 74, 122, 0.9);
     box-shadow: 0 6px 20px rgba(26, 74, 122, 0.5);
 }
 
 #ptt-btn:not(:disabled):active,
 #ptt-btn.talking {
-    background: #e94560;
+    background: rgba(233, 69, 96, 0.9);
     color: #fff;
     transform: scale(0.95);
     box-shadow: 0 4px 20px rgba(233, 69, 96, 0.6);
 }
 
 #ptt-btn:disabled {
-    opacity: 0.4;
+    opacity: 0.5;
     cursor: not-allowed;
-}
-
-#status {
-    font-size: 13px;
-    color: #888;
-    white-space: nowrap;
 }
 
 /* Панель участников */
 
 #peers-panel {
-    padding: 12px 20px;
+    padding: 8px 16px;
     background: #16213e;
     border-top: 1px solid #2a2a4a;
     flex-shrink: 0;
-    max-height: 120px;
-    overflow-y: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 #peers-panel h3 {
-    font-size: 13px;
-    color: #888;
-    margin-bottom: 8px;
+    font-size: 11px;
+    color: #666;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin: 0;
 }
 
 #peers-list {
     list-style: none;
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 #peers-list li {
     background: #0f3460;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 13px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 12px;
 }
 
 #peers-list li.is-talker {
