@@ -99,6 +99,26 @@ body {
     text-align: center;
 }
 
+.refresh-btn {
+    padding: 8px;
+    border: 1px solid #2a2a4a;
+    border-radius: 8px;
+    background: transparent;
+    color: #888;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+    color: #e94560;
+    border-color: #e94560;
+}
+
+.refresh-btn:active {
+    transform: scale(0.95);
+}
+
 /* ── Экран комнаты ── */
 
 #room-screen {
@@ -132,6 +152,7 @@ body {
     color: #888;
 }
 
+.header-btn,
 #leave-btn {
     width: 32px;
     height: 32px;
@@ -149,11 +170,13 @@ body {
     flex-shrink: 0;
 }
 
+.header-btn:hover,
 #leave-btn:hover {
     background: #e94560;
     color: #fff;
 }
 
+.header-btn:active,
 #leave-btn:active {
     transform: scale(0.95);
 }

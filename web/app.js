@@ -51,6 +51,8 @@ const talkerNameEl = document.getElementById("talker-name");
 const noStreamEl = document.getElementById("no-stream");
 const peersList = document.getElementById("peers-list");
 const unmuteBtn = document.getElementById("unmute-btn");
+const refreshBtn = document.getElementById("refresh-btn");
+const refreshBtnLogin = document.getElementById("refresh-btn-login");
 
 // ── Состояние ──
 let ws = null;
@@ -152,10 +154,32 @@ leaveBtn.addEventListener("click", () => {
   }
 });
 
-// Unmute button
+// Refresh buttons
+refreshBtn.addEventListener("click", () => location.reload());
+refreshBtnLogin.addEventListener("click", () => location.reload());
+
+// Unmute / Play button — handles both unmuting and starting playback on iOS
 unmuteBtn.addEventListener("click", () => {
   remoteVideo.muted = false;
-  unmuteBtn.hidden = true;
+  remoteVideo
+    .play()
+    .then(() => {
+      console.log("[ui] play+unmute successful");
+      unmuteBtn.hidden = true;
+    })
+    .catch((err) => {
+      console.warn("[ui] play after tap failed:", err.name);
+      // Если даже после тапа не играет со звуком — пробуем muted
+      remoteVideo.muted = true;
+      remoteVideo
+        .play()
+        .then(() => {
+          unmuteBtn.textContent = "🔇 Включить звук";
+        })
+        .catch((e) => {
+          console.error("[ui] play failed even after user tap:", e.name);
+        });
+    });
 });
 
 function handleJoin() {
@@ -752,14 +776,18 @@ function onRelayChunk(payload) {
         );
         // Autoplay со звуком заблокирован — пробуем без звука
         remoteVideo.muted = true;
-        unmuteBtn.hidden = false;
         remoteVideo
           .play()
           .then(() => {
             console.log("[mse] playing muted, unmute button shown");
+            unmuteBtn.textContent = "🔇 Включить звук";
+            unmuteBtn.hidden = false;
           })
           .catch((e) => {
             console.error("[mse] play error even muted:", e.name, e.message);
+            // Даже muted autoplay заблокирован (iPad/iOS) — показываем кнопку запуска
+            unmuteBtn.textContent = "▶ Нажмите для воспроизведения";
+            unmuteBtn.hidden = false;
           });
       });
   }

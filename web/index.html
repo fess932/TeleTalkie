@@ -11,6 +11,7 @@
         <meta name="mobile-web-app-capable" content="yes" />
 
         <!-- iOS Meta Tags -->
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
             name="apple-mobile-web-app-status-bar-style"
             content="black-translucent"
@@ -52,6 +53,13 @@
                 />
                 <button id="join-btn">Войти</button>
                 <p id="login-error" class="error" hidden></p>
+                <button
+                    id="refresh-btn-login"
+                    class="refresh-btn"
+                    title="Обновить страницу"
+                >
+                    ↻ Обновить
+                </button>
             </div>
         </div>
 
@@ -60,16 +68,18 @@
             <header>
                 <span id="room-name"></span>
                 <span id="user-name"></span>
+                <button
+                    id="refresh-btn"
+                    class="header-btn"
+                    title="Обновить страницу"
+                >
+                    ↻
+                </button>
                 <button id="leave-btn" title="Выйти из комнаты">✕</button>
             </header>
 
             <div id="video-container">
-                <video
-                    id="remote-video"
-                    autoplay
-                    playsinline
-                    webkit-playsinline
-                ></video>
+                <video id="remote-video" autoplay playsinline muted></video>
                 <div id="talker-label" hidden>
                     Говорит: <span id="talker-name"></span>
                 </div>
