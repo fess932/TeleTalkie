@@ -54,65 +54,31 @@ const unmuteBtn = document.getElementById("unmute-btn");
 const refreshBtn = document.getElementById("refresh-btn");
 const refreshBtnLogin = document.getElementById("refresh-btn-login");
 
-// ── PTT звуки рации (Web Audio API) ──
-let audioCtx = null;
+// ── PTT звуки рации (WAV файлы) ──
+const pttStartSound = new Audio("/start.wav");
+const pttStopSound = new Audio("/stop.wav");
 
-function getAudioCtx() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
-  return audioCtx;
-}
+// Предзагрузка звуков для минимальной задержки
+pttStartSound.load();
+pttStopSound.load();
 
-// Звук нажатия PTT — короткий "roger beep" вверх
 function playPTTOn() {
   try {
-    const ctx = getAudioCtx();
-    const now = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(800, now);
-    osc.frequency.linearRampToValueAtTime(1200, now + 0.08);
-
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.12);
-
-    osc.start(now);
-    osc.stop(now + 0.12);
+    pttStartSound.currentTime = 0;
+    pttStartSound
+      .play()
+      .catch((e) => console.warn("[audio] start play failed:", e));
   } catch (e) {
     console.warn("[audio] ptt-on sound failed:", e);
   }
 }
 
-// Звук отпускания PTT — двойной тон вниз
 function playPTTOff() {
   try {
-    const ctx = getAudioCtx();
-    const now = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.linearRampToValueAtTime(600, now + 0.1);
-
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.setValueAtTime(0.3, now + 0.06);
-    gain.gain.linearRampToValueAtTime(0, now + 0.15);
-
-    osc.start(now);
-    osc.stop(now + 0.15);
+    pttStopSound.currentTime = 0;
+    pttStopSound
+      .play()
+      .catch((e) => console.warn("[audio] stop play failed:", e));
   } catch (e) {
     console.warn("[audio] ptt-off sound failed:", e);
   }
