@@ -89,6 +89,7 @@ function playPTTOff() {
 // ── Состояние ──
 let ws = null;
 let localStream = null; // кэшированный MediaStream (камера+микрофон)
+let canvasStream = null; // stream с canvas для отправки
 let recorder = null; // MediaRecorder
 let pttState = "idle"; // idle | requesting | talking
 let pttMode = "hold"; // hold | toggle
@@ -96,6 +97,7 @@ let currentRoom = "";
 let currentName = "";
 let reconnectTimer = null;
 let currentTalker = ""; // имя текущего talker'а (из PEER_INFO)
+let canvasAnimationId = null; // requestAnimationFrame ID для canvas рендеринга
 
 // ── MSE состояние ──
 let mediaSource = null;
@@ -103,41 +105,43 @@ let sourceBuffer = null;
 let chunkQueue = [];
 let mseReady = false;
 
-// ── Выбор mimeType для MediaRecorder и MSE (РАЗДЕЛЬНО) ──
-// Порядок важен: сначала Safari-совместимые форматы, потом остальные
-const MIME_CANDIDATES = [
-  // H.264 для Safari/iOS (лучшая совместимость)
-  "video/mp4", // Общий MP4 — 100% работает на iOS
+// ── Выбор mimeType для MediaRecorder (только H.264 + AAC) ──
+const H264_MIME_CANDIDATES = [
   "video/mp4;codecs=avc1.42E01E,mp4a.40.2", // H.264 Baseline + AAC
   "video/mp4;codecs=avc1.4d002a,mp4a.40.2", // H.264 Main + AAC
-  // VP8/VP9 для Chrome/Firefox
-  "video/webm;codecs=vp8,opus",
-  "video/webm;codecs=vp9,opus",
-  "video/webm;codecs=vp8",
-  "video/webm",
+  "video/mp4;codecs=avc1.42E01E", // H.264 Baseline без аудио
+  "video/mp4", // Общий MP4
 ];
 
 function pickRecorderMimeType() {
-  console.log("[media] detecting MediaRecorder codec support...");
+  console.log("[media] detecting H.264 MediaRecorder codec support...");
 
-  for (const mime of MIME_CANDIDATES) {
+  for (const mime of H264_MIME_CANDIDATES) {
     const supported = MediaRecorder.isTypeSupported(mime);
     console.log(`[media] recorder: ${mime} = ${supported}`);
 
     if (supported) {
-      console.log("[media] ✅ selected recorder mimeType:", mime);
+      console.log("[media] ✅ selected H.264 mimeType:", mime);
       return mime;
     }
   }
 
-  console.error("[media] ❌ no supported mimeType for MediaRecorder!");
+  console.error("[media] ❌ H.264 not supported in MediaRecorder!");
   return "";
 }
+
+// ── Выбор mimeType для MSE (приём только H.264 + AAC) ──
+const MSE_MIME_CANDIDATES = [
+  "video/mp4;codecs=avc1.42E01E,mp4a.40.2", // H.264 Baseline + AAC
+  "video/mp4;codecs=avc1.4d002a,mp4a.40.2", // H.264 Main + AAC
+  "video/mp4;codecs=avc1.42E01E", // H.264 Baseline без аудио
+  "video/mp4", // Общий MP4
+];
 
 function pickMSEMimeType() {
   console.log("[media] detecting MSE codec support...");
 
-  for (const mime of MIME_CANDIDATES) {
+  for (const mime of MSE_MIME_CANDIDATES) {
     const supported = MediaSource.isTypeSupported(mime);
     console.log(`[media] mse: ${mime} = ${supported}`);
 
@@ -558,6 +562,52 @@ function onPTTReleased() {
   teardownMSE();
 }
 
+// ── Canvas для захвата и отправки видео ──
+
+function createCanvasStream(videoStream) {
+  const videoTrack = videoStream.getVideoTracks()[0];
+  const settings = videoTrack.getSettings();
+
+  // Создаём canvas с размерами видео
+  const canvas = document.createElement("canvas");
+  canvas.width = settings.width || 640;
+  canvas.height = settings.height || 480;
+  const ctx = canvas.getContext("2d");
+
+  // Создаём временный video элемент для рендеринга
+  const tempVideo = document.createElement("video");
+  tempVideo.srcObject = videoStream;
+  tempVideo.play();
+
+  // Рендерим каждый кадр на canvas
+  function renderFrame() {
+    if (tempVideo.readyState >= tempVideo.HAVE_CURRENT_DATA) {
+      ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+    }
+    canvasAnimationId = requestAnimationFrame(renderFrame);
+  }
+
+  renderFrame();
+
+  // Захватываем stream с canvas (15 fps для экономии ресурсов)
+  const stream = canvas.captureStream(15);
+
+  // Добавляем аудио из оригинального потока
+  const audioTrack = videoStream.getAudioTracks()[0];
+  if (audioTrack) {
+    stream.addTrack(audioTrack);
+  }
+
+  return { stream, canvas, tempVideo };
+}
+
+function stopCanvasStream() {
+  if (canvasAnimationId) {
+    cancelAnimationFrame(canvasAnimationId);
+    canvasAnimationId = null;
+  }
+}
+
 // ── MediaRecorder: захват и отправка чанков ──
 
 async function ensureLocalStream() {
@@ -602,11 +652,17 @@ async function startTalking() {
   try {
     const stream = await ensureLocalStream();
 
-    // Показываем локальное превью
+    // Показываем локальное превью (оригинальный stream)
     localVideo.srcObject = stream;
     localVideo.hidden = false;
     remoteVideo.hidden = true;
     noStreamEl.hidden = true;
+
+    // Создаём canvas stream для отправки
+    const { stream: canvasStreamObj } = createCanvasStream(stream);
+    canvasStream = canvasStreamObj;
+
+    console.log("[media] canvas stream created");
 
     const mimeType = pickRecorderMimeType();
     if (!mimeType) {
@@ -617,13 +673,15 @@ async function startTalking() {
       pttState = "idle";
       pttBtn.classList.remove("talking");
       wsSend(MSG.PTT_OFF);
+      stopCanvasStream();
       return;
     }
 
     console.log("[media] creating MediaRecorder with:", mimeType);
 
     try {
-      recorder = new MediaRecorder(stream, {
+      // Записываем canvas stream вместо оригинального
+      recorder = new MediaRecorder(canvasStream, {
         mimeType,
         videoBitsPerSecond: 400_000, // 400kbps для меньших чанков
       });
@@ -637,6 +695,7 @@ async function startTalking() {
       pttState = "idle";
       pttBtn.classList.remove("talking");
       wsSend(MSG.PTT_OFF);
+      stopCanvasStream();
       return;
     }
 
@@ -677,6 +736,13 @@ function stopTalking() {
     console.log("[media] recording stopped");
   }
   recorder = null;
+
+  // Останавливаем canvas stream
+  stopCanvasStream();
+  if (canvasStream) {
+    canvasStream.getTracks().forEach((t) => t.stop());
+    canvasStream = null;
+  }
 
   // Скрываем локальное превью
   localVideo.hidden = true;
