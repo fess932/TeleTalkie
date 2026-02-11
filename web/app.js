@@ -852,9 +852,6 @@ function teardownMSE() {
   mseReady = false;
   chunkQueue = [];
 
-  // Сначала останавливаем video
-  remoteVideo.pause();
-
   if (sourceBuffer) {
     try {
       // Удаляем все event listeners
@@ -977,8 +974,13 @@ function onRelayChunk(payload) {
   chunkQueue.push(payload.buffer);
   flushQueue();
 
-  // Попытка воспроизведения со звуком
-  if (remoteVideo.paused) {
+  // Попытка воспроизведения со звуком (только если MSE готов и есть данные)
+  if (
+    remoteVideo.paused &&
+    mseReady &&
+    sourceBuffer &&
+    sourceBuffer.buffered.length > 0
+  ) {
     console.log("[mse] attempting to play with audio...");
     remoteVideo.muted = false;
     remoteVideo
