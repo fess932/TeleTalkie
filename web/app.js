@@ -47,18 +47,25 @@ let sourceBuffer = null;
 let chunkQueue = [];
 let mseReady = false;
 
-// ── Выбор mimeType для MediaRecorder ──
+// ── Выбор mimeType для MediaRecorder и MSE (ЕДИНЫЙ список) ──
 const MIME_CANDIDATES = [
   "video/webm;codecs=vp8,opus",
-  "video/webm;codecs=vp9,opus",
   "video/webm;codecs=vp8",
   "video/webm",
 ];
 
 function pickMimeType() {
+  // Выбираем первый формат, который поддерживается И для записи, И для воспроизведения
   for (const mime of MIME_CANDIDATES) {
-    if (MediaRecorder.isTypeSupported(mime)) return mime;
+    if (
+      MediaRecorder.isTypeSupported(mime) &&
+      MediaSource.isTypeSupported(mime)
+    ) {
+      console.log("[media] selected mimeType:", mime);
+      return mime;
+    }
   }
+  console.error("[media] no common mimeType found");
   return "";
 }
 
@@ -350,6 +357,7 @@ async function startTalking() {
       if (e.data && e.data.size > 0 && pttState === "talking") {
         try {
           const buf = await e.data.arrayBuffer();
+          console.log("[media] sending chunk, size:", buf.byteLength);
           wsSend(MSG.MEDIA_CHUNK, buf);
         } catch (err) {
           console.error("[media] chunk read error:", err);
@@ -361,9 +369,14 @@ async function startTalking() {
       console.error("[media] recorder error:", e.error);
     };
 
-    recorder.start(200); // чанк каждые 200мс
-    console.log("[media] recording started, mimeType:", mimeType);
+    recorder.onstart = () => {
+      console.log("[media] recording started, mimeType:", mimeType);
+    };
+
+    // Запускаем с меньшим интервалом для более быстрой отправки init segment
+    recorder.start(100); // чанк каждые 100мс
   } catch (err) {
+    console.error("[media] startTalking error:", err);
     // getUserMedia не дали — отпускаем эфир
     pttState = "idle";
     pttBtn.classList.remove("talking");
@@ -381,20 +394,6 @@ function stopTalking() {
 
 // ── MSE: воспроизведение входящих чанков ──
 
-const MSE_MIME_CANDIDATES = [
-  "video/webm;codecs=vp8,opus",
-  "video/webm;codecs=vp9,opus",
-  "video/webm;codecs=vp8",
-  "video/webm",
-];
-
-function pickMSEMimeType() {
-  for (const mime of MSE_MIME_CANDIDATES) {
-    if (MediaSource.isTypeSupported(mime)) return mime;
-  }
-  return "";
-}
-
 function initMSE() {
   teardownMSE();
 
@@ -402,7 +401,8 @@ function initMSE() {
   remoteVideo.src = URL.createObjectURL(mediaSource);
 
   mediaSource.addEventListener("sourceopen", () => {
-    const mime = pickMSEMimeType();
+    // Используем ту же функцию выбора MIME-типа
+    const mime = pickMimeType();
     if (!mime) {
       console.error("[mse] no supported mimeType");
       return;
@@ -420,6 +420,25 @@ function initMSE() {
     sourceBuffer.addEventListener("updateend", () => {
       flushQueue();
       trimBuffer();
+
+      // Если видео в состоянии waiting и есть буферизованные данные, пробуем продолжить
+      if (
+        remoteVideo.readyState < remoteVideo.HAVE_FUTURE_DATA &&
+        sourceBuffer.buffered.length > 0
+      ) {
+        const bufferedEnd = sourceBuffer.buffered.end(
+          sourceBuffer.buffered.length - 1,
+        );
+        const currentTime = remoteVideo.currentTime;
+        if (bufferedEnd > currentTime + 0.1) {
+          console.log(
+            "[mse] have buffered data, attempting to resume playback",
+          );
+          remoteVideo
+            .play()
+            .catch((e) => console.warn("[mse] resume play failed:", e));
+        }
+      }
     });
 
     sourceBuffer.addEventListener("error", (e) => {
@@ -434,6 +453,30 @@ function initMSE() {
   mediaSource.addEventListener("sourceclose", () => {
     console.log("[mse] source closed");
     mseReady = false;
+  });
+
+  mediaSource.addEventListener("error", (e) => {
+    console.error("[mse] MediaSource error:", e);
+  });
+
+  // Обработка событий video элемента
+  remoteVideo.addEventListener("waiting", () => {
+    console.log(
+      "[mse] video waiting for data, currentTime:",
+      remoteVideo.currentTime,
+    );
+  });
+
+  remoteVideo.addEventListener("playing", () => {
+    console.log("[mse] video playing");
+  });
+
+  remoteVideo.addEventListener("stalled", () => {
+    console.log("[mse] video stalled");
+  });
+
+  remoteVideo.addEventListener("error", (e) => {
+    console.error("[mse] video error:", remoteVideo.error);
   });
 }
 
@@ -470,20 +513,32 @@ function teardownMSE() {
 }
 
 function flushQueue() {
-  if (
-    !mseReady ||
-    !sourceBuffer ||
-    sourceBuffer.updating ||
-    chunkQueue.length === 0
-  ) {
+  if (!mseReady) {
+    console.log("[mse] flushQueue: MSE not ready");
+    return;
+  }
+  if (!sourceBuffer) {
+    console.log("[mse] flushQueue: no sourceBuffer");
+    return;
+  }
+  if (sourceBuffer.updating) {
+    return;
+  }
+  if (chunkQueue.length === 0) {
     return;
   }
 
   const chunk = chunkQueue.shift();
+  console.log(
+    "[mse] appending chunk, size:",
+    chunk.byteLength,
+    "queue:",
+    chunkQueue.length,
+  );
   try {
     sourceBuffer.appendBuffer(chunk);
   } catch (e) {
-    console.error("[mse] appendBuffer error:", e);
+    console.error("[mse] appendBuffer error:", e.name, e.message);
     // При ошибке квоты — чистим буфер и пробуем снова
     if (e.name === "QuotaExceededError") {
       trimBuffer(true);
@@ -502,37 +557,62 @@ function trimBuffer(force) {
 
     const end = buffered.end(buffered.length - 1);
     const start = buffered.start(0);
+    const currentTime = remoteVideo.currentTime;
 
-    // Держим максимум 5 секунд буфера (или 2 при force)
-    const maxDuration = force ? 2 : 5;
+    // Держим максимум 10 секунд буфера (или 3 при force)
+    const maxDuration = force ? 3 : 10;
     if (end - start > maxDuration) {
-      sourceBuffer.remove(start, end - maxDuration);
+      // Удаляем данные ДО текущей позиции воспроизведения минус 1 сек
+      const removeEnd = Math.max(start, currentTime - 1);
+      if (removeEnd > start) {
+        console.log("[mse] trimming buffer from", start, "to", removeEnd);
+        sourceBuffer.remove(start, removeEnd);
+      }
     }
   } catch (e) {
-    // ignore
+    console.warn("[mse] trimBuffer error:", e);
   }
 }
 
 function onRelayChunk(payload) {
   if (!mediaSource) {
     // Первый чанк нового стрима — инициализируем MSE
+    console.log("[mse] first chunk received, initializing MSE");
     noStreamEl.hidden = true;
     talkerLabel.hidden = false;
     initMSE();
   }
 
+  console.log("[mse] received chunk, size:", payload.byteLength);
   chunkQueue.push(payload.buffer);
   flushQueue();
 
   // Попытка воспроизведения
   if (remoteVideo.paused) {
-    remoteVideo.play().catch(() => {
+    remoteVideo.play().catch((err) => {
+      console.log("[mse] autoplay blocked, trying with muted");
       // Autoplay заблокирован — ставим muted и пробуем снова
       remoteVideo.muted = true;
       remoteVideo.play().catch((e) => {
-        console.error("[mse] play error:", e);
+        console.error("[mse] play error:", e.name, e.message);
       });
     });
+  }
+
+  // Синхронизация с live-краем: если отстаём больше чем на 0.5 сек, перематываем
+  if (!remoteVideo.paused && sourceBuffer && sourceBuffer.buffered.length > 0) {
+    const bufferedEnd = sourceBuffer.buffered.end(
+      sourceBuffer.buffered.length - 1,
+    );
+    const lag = bufferedEnd - remoteVideo.currentTime;
+    if (lag > 0.5) {
+      console.log(
+        "[mse] lag detected:",
+        lag.toFixed(2),
+        "s, seeking to live edge",
+      );
+      remoteVideo.currentTime = bufferedEnd - 0.1;
+    }
   }
 }
 
