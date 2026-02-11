@@ -90,28 +90,23 @@
             </div>
 
             <div id="controls">
-                <div id="ptt-container">
-                    <button id="ptt-btn" disabled></button>
-                    <div id="ptt-mode">
-                        <label>
-                            <input
-                                type="radio"
-                                name="ptt-mode"
-                                value="hold"
-                                checked
-                            />
-                            Удержание
-                        </label>
-                        <label>
-                            <input
-                                type="radio"
-                                name="ptt-mode"
-                                value="toggle"
-                            />
-                            Переключение
-                        </label>
-                    </div>
+                <div id="ptt-mode">
+                    <button
+                        class="mode-btn active"
+                        data-mode="hold"
+                        title="Удержание"
+                    >
+                        ⏺
+                    </button>
+                    <button
+                        class="mode-btn"
+                        data-mode="toggle"
+                        title="Переключение"
+                    >
+                        ⏯
+                    </button>
                 </div>
+                <button id="ptt-btn" disabled></button>
                 <div id="status"></div>
             </div>
 

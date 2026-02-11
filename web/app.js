@@ -411,11 +411,21 @@ function pttToggle() {
   }
 }
 
-// PTT mode radio buttons
-document.querySelectorAll('input[name="ptt-mode"]').forEach((radio) => {
-  radio.addEventListener("change", (e) => {
-    pttMode = e.target.value;
+// PTT mode buttons
+document.querySelectorAll(".mode-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const mode = btn.dataset.mode;
+    if (pttMode === mode) return; // уже активен
+
+    pttMode = mode;
     console.log("[ptt] mode changed to:", pttMode);
+
+    // Обновляем визуальное состояние кнопок
+    document
+      .querySelectorAll(".mode-btn")
+      .forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
     // Если переключили режим пока говорим — отпускаем
     if (pttState !== "idle") {
       pttUp();
