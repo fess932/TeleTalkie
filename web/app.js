@@ -46,6 +46,7 @@ const leaveBtn = document.getElementById("leave-btn");
 const pttBtn = document.getElementById("ptt-btn");
 // const statusEl = document.getElementById("status"); // removed from UI
 const remoteVideo = document.getElementById("remote-video");
+const localVideo = document.getElementById("local-video");
 const talkerLabel = document.getElementById("talker-label");
 const talkerNameEl = document.getElementById("talker-name");
 const noStreamEl = document.getElementById("no-stream");
@@ -601,6 +602,12 @@ async function startTalking() {
   try {
     const stream = await ensureLocalStream();
 
+    // Показываем локальное превью
+    localVideo.srcObject = stream;
+    localVideo.hidden = false;
+    remoteVideo.hidden = true;
+    noStreamEl.hidden = true;
+
     const mimeType = pickRecorderMimeType();
     if (!mimeType) {
       console.error("[media] ❌ no supported mimeType for MediaRecorder");
@@ -670,6 +677,16 @@ function stopTalking() {
     console.log("[media] recording stopped");
   }
   recorder = null;
+
+  // Скрываем локальное превью
+  localVideo.hidden = true;
+  localVideo.srcObject = null;
+  remoteVideo.hidden = false;
+
+  // Показываем "Эфир свободен" если никого нет в эфире
+  if (!currentTalker) {
+    noStreamEl.hidden = false;
+  }
 }
 
 // ── MSE: воспроизведение входящих чанков ──
