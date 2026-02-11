@@ -23,6 +23,7 @@ const joinBtn = document.getElementById("join-btn");
 const loginError = document.getElementById("login-error");
 const roomNameEl = document.getElementById("room-name");
 const userNameEl = document.getElementById("user-name");
+const leaveBtn = document.getElementById("leave-btn");
 const pttBtn = document.getElementById("ptt-btn");
 const statusEl = document.getElementById("status");
 const remoteVideo = document.getElementById("remote-video");
@@ -70,6 +71,26 @@ function pickMimeType() {
 }
 
 // ── Экран входа ──
+
+// Загружаем сохраненные данные при загрузке страницы
+window.addEventListener("DOMContentLoaded", () => {
+  const savedName = localStorage.getItem("teletalkie_name");
+  const savedRoom = localStorage.getItem("teletalkie_room");
+
+  if (savedName) {
+    nameInput.value = savedName;
+  }
+  if (savedRoom) {
+    roomInput.value = savedRoom;
+  }
+
+  // Автоматически подключаемся если есть и имя и комната
+  if (savedName && savedRoom) {
+    console.log("[app] auto-joining last room:", savedRoom);
+    handleJoin();
+  }
+});
+
 joinBtn.addEventListener("click", handleJoin);
 
 nameInput.addEventListener("keydown", (e) => {
@@ -77,6 +98,12 @@ nameInput.addEventListener("keydown", (e) => {
 });
 roomInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") handleJoin();
+});
+
+leaveBtn.addEventListener("click", () => {
+  if (confirm("Выйти из комнаты?")) {
+    leaveRoom();
+  }
 });
 
 function handleJoin() {
@@ -92,6 +119,10 @@ function handleJoin() {
   joinBtn.textContent = "Подключение…";
   hideLoginError();
 
+  // Сохраняем в localStorage
+  localStorage.setItem("teletalkie_name", name);
+  localStorage.setItem("teletalkie_room", room);
+
   currentRoom = room;
   currentName = name;
   connect(room, name);
@@ -104,6 +135,37 @@ function showLoginError(msg) {
 
 function hideLoginError() {
   loginError.hidden = true;
+}
+
+function leaveRoom() {
+  // Закрываем WebSocket соединение
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+
+  // Останавливаем запись и воспроизведение
+  stopTalking();
+  teardownMSE();
+  releaseLocalStream();
+
+  // Очищаем состояние
+  pttState = "idle";
+  currentRoom = "";
+  currentName = "";
+  currentTalker = "";
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  // Возвращаемся на экран входа
+  roomScreen.hidden = true;
+  loginScreen.hidden = false;
+  joinBtn.disabled = false;
+  joinBtn.textContent = "Войти";
+
+  console.log("[app] left room");
 }
 
 // ── WebSocket ──
