@@ -51,6 +51,17 @@ func New(addr string, webFS fs.FS, hub *room.Hub) *Server {
 		addr: addr,
 	}
 
+	// Специальные обработчики для PWA файлов с правильными MIME-типами
+	s.mux.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/manifest+json")
+		http.ServeFileFS(w, r, webFS, "manifest.json")
+	})
+	s.mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		w.Header().Set("Service-Worker-Allowed", "/")
+		http.ServeFileFS(w, r, webFS, "sw.js")
+	})
+
 	s.mux.Handle("/", http.FileServer(http.FS(webFS)))
 	s.mux.HandleFunc("/ws", s.handleWS)
 
