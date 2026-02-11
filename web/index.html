@@ -90,7 +90,28 @@
             </div>
 
             <div id="controls">
-                <button id="ptt-btn" disabled>Зажми чтобы говорить</button>
+                <div id="ptt-container">
+                    <button id="ptt-btn" disabled></button>
+                    <div id="ptt-mode">
+                        <label>
+                            <input
+                                type="radio"
+                                name="ptt-mode"
+                                value="hold"
+                                checked
+                            />
+                            Удержание
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                name="ptt-mode"
+                                value="toggle"
+                            />
+                            Переключение
+                        </label>
+                    </div>
+                </div>
                 <div id="status"></div>
             </div>
 

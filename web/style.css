@@ -256,14 +256,21 @@ body {
     flex-shrink: 0;
 }
 
-#ptt-btn {
+#ptt-container {
     flex: 1;
-    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+#ptt-btn {
+    width: 100px;
+    height: 100px;
     border: none;
-    border-radius: 12px;
+    border-radius: 50%;
     background: #0f3460;
     color: #e0e0e0;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     user-select: none;
@@ -271,23 +278,65 @@ body {
     touch-action: none;
     transition:
         background 0.15s,
-        transform 0.1s;
+        transform 0.1s,
+        box-shadow 0.15s;
+    box-shadow: 0 4px 16px rgba(15, 52, 96, 0.4);
+    flex-shrink: 0;
+}
+
+#ptt-btn::before {
+    content: "📻";
+    font-size: 32px;
 }
 
 #ptt-btn:not(:disabled):hover {
     background: #1a4a7a;
+    box-shadow: 0 6px 20px rgba(26, 74, 122, 0.5);
 }
 
 #ptt-btn:not(:disabled):active,
 #ptt-btn.talking {
     background: #e94560;
     color: #fff;
-    transform: scale(0.97);
+    transform: scale(0.95);
+    box-shadow: 0 4px 20px rgba(233, 69, 96, 0.6);
 }
 
 #ptt-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+#ptt-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+#ptt-mode label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #888;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+#ptt-mode label:hover {
+    color: #e0e0e0;
+}
+
+#ptt-mode input[type="radio"] {
+    cursor: pointer;
+    accent-color: #e94560;
+}
+
+#ptt-mode input[type="radio"]:checked + span,
+#ptt-mode label:has(input[type="radio"]:checked) {
+    color: #e94560;
+    font-weight: 600;
 }
 
 #status {

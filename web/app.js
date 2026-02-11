@@ -89,6 +89,7 @@ let ws = null;
 let localStream = null; // кэшированный MediaStream (камера+микрофон)
 let recorder = null; // MediaRecorder
 let pttState = "idle"; // idle | requesting | talking
+let pttMode = "hold"; // hold | toggle
 let currentRoom = "";
 let currentName = "";
 let reconnectTimer = null;
@@ -394,6 +395,7 @@ function pttUp() {
     statusEl.textContent = "Подключено";
   } else if (pttState === "requesting") {
     // Отпустили до получения ответа — всё равно шлём OFF
+    playPTTOff();
     wsSend(MSG.PTT_OFF);
     pttState = "idle";
     pttBtn.classList.remove("talking");
@@ -401,30 +403,72 @@ function pttUp() {
   }
 }
 
+function pttToggle() {
+  if (pttState === "idle") {
+    pttDown();
+  } else {
+    pttUp();
+  }
+}
+
+// PTT mode radio buttons
+document.querySelectorAll('input[name="ptt-mode"]').forEach((radio) => {
+  radio.addEventListener("change", (e) => {
+    pttMode = e.target.value;
+    console.log("[ptt] mode changed to:", pttMode);
+    // Если переключили режим пока говорим — отпускаем
+    if (pttState !== "idle") {
+      pttUp();
+    }
+  });
+});
+
 // Mouse events
 pttBtn.addEventListener("mousedown", (e) => {
   if (e.button !== 0) return; // только левая кнопка
   e.preventDefault();
-  pttDown();
+  if (pttMode === "hold") {
+    pttDown();
+  }
+});
+
+pttBtn.addEventListener("click", (e) => {
+  if (pttMode === "toggle") {
+    pttToggle();
+  }
 });
 
 document.addEventListener("mouseup", (e) => {
   if (e.button !== 0) return;
-  pttUp();
+  if (pttMode === "hold") {
+    pttUp();
+  }
 });
 
 // Touch events
 pttBtn.addEventListener("touchstart", (e) => {
   e.preventDefault();
-  pttDown();
+  if (pttMode === "hold") {
+    pttDown();
+  }
+});
+
+pttBtn.addEventListener("touchend", (e) => {
+  if (pttMode === "toggle") {
+    pttToggle();
+  }
 });
 
 document.addEventListener("touchend", (e) => {
-  pttUp();
+  if (pttMode === "hold") {
+    pttUp();
+  }
 });
 
 document.addEventListener("touchcancel", (e) => {
-  pttUp();
+  if (pttMode === "hold") {
+    pttUp();
+  }
 });
 
 // Keyboard: пробел как PTT (когда фокус не на инпутах)
@@ -433,7 +477,12 @@ document.addEventListener("keydown", (e) => {
     const tag = document.activeElement?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA") return;
     e.preventDefault();
-    if (!e.repeat) pttDown();
+    if (pttMode === "hold") {
+      if (!e.repeat) pttDown();
+    } else {
+      // В toggle режиме пробел работает как click
+      if (!e.repeat) pttToggle();
+    }
   }
 });
 
@@ -442,7 +491,9 @@ document.addEventListener("keyup", (e) => {
     const tag = document.activeElement?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA") return;
     e.preventDefault();
-    pttUp();
+    if (pttMode === "hold") {
+      pttUp();
+    }
   }
 });
 
