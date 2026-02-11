@@ -180,6 +180,22 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// Graceful close WebSocket при закрытии страницы
+window.addEventListener("beforeunload", () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    console.log("[ws] closing gracefully before page unload");
+    ws.close(1000, "Page closing"); // 1000 = Normal Closure
+  }
+});
+
+// Также обрабатываем pagehide для мобильных браузеров
+window.addEventListener("pagehide", () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    console.log("[ws] closing gracefully on pagehide");
+    ws.close(1000, "Page hiding");
+  }
+});
+
 joinBtn.addEventListener("click", handleJoin);
 
 nameInput.addEventListener("keydown", (e) => {
@@ -367,12 +383,19 @@ function connect(roomID, name) {
   });
 
   ws.addEventListener("close", (e) => {
-    console.log("[ws] closed", e.code, e.reason);
+    console.log(
+      "[ws] closed, code:",
+      e.code,
+      "reason:",
+      e.reason || "(empty)",
+      "wasClean:",
+      e.wasClean,
+    );
     handleDisconnect();
   });
 
-  ws.addEventListener("error", () => {
-    console.error("[ws] error");
+  ws.addEventListener("error", (e) => {
+    console.error("[ws] error event:", e);
     // Если мы на экране входа — показать ошибку
     if (!loginScreen.hidden) {
       joinBtn.disabled = false;

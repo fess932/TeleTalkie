@@ -142,7 +142,14 @@ func (s *Server) readLoop(ctx context.Context, conn *websocket.Conn, peer *room.
 	for {
 		typ, data, err := conn.Read(ctx)
 		if err != nil {
-			log.Printf("server: read error for %q: %v", peer.Name, err)
+			// Проверяем является ли это нормальным закрытием
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
+				websocket.CloseStatus(err) == websocket.StatusGoingAway ||
+				websocket.CloseStatus(err) == websocket.StatusNoStatusRcvd {
+				log.Printf("server: client %q disconnected gracefully (status: %v)", peer.Name, websocket.CloseStatus(err))
+			} else {
+				log.Printf("server: read error for %q: %v", peer.Name, err)
+			}
 			return
 		}
 
@@ -176,11 +183,24 @@ func (s *Server) readLoop(ctx context.Context, conn *websocket.Conn, peer *room.
 }
 
 // writeLoop читает из канала peer.Send и пишет в WebSocket.
+// Также отправляет ping каждые 30 секунд для поддержания соединения.
 func (s *Server) writeLoop(ctx context.Context, conn *websocket.Conn, peer *room.Peer) {
+	pingTicker := time.NewTicker(30 * time.Second)
+	defer pingTicker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-pingTicker.C:
+			// Отправляем ping для keepalive
+			pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			err := conn.Ping(pingCtx)
+			cancel()
+			if err != nil {
+				log.Printf("server: ping error for %q: %v", peer.Name, err)
+				return
+			}
 		case msg, ok := <-peer.Send:
 			if !ok {
 				// Канал закрыт — peer покинул комнату.
