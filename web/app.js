@@ -982,8 +982,8 @@ function trimBuffer(force) {
     const start = buffered.start(0);
     const currentTime = remoteVideo.currentTime;
 
-    // Держим максимум 10 секунд буфера (или 3 при force)
-    const maxDuration = force ? 3 : 10;
+    // Держим максимум 2 секунд буфера для минимальной задержки (или 1 при force)
+    const maxDuration = force ? 1 : 2;
     if (end - start > maxDuration) {
       // Удаляем данные ДО текущей позиции воспроизведения минус 1 сек
       const removeEnd = Math.max(start, currentTime - 1);
@@ -1033,6 +1033,16 @@ function onRelayChunk(payload) {
     sourceBuffer &&
     sourceBuffer.buffered.length > 0
   ) {
+    // ВАЖНО: Сразу перематываем к live-краю перед воспроизведением
+    const bufferedEnd = sourceBuffer.buffered.end(
+      sourceBuffer.buffered.length - 1,
+    );
+    remoteVideo.currentTime = bufferedEnd - 0.1;
+    console.log(
+      "[mse] seeking to live edge before play:",
+      bufferedEnd.toFixed(2),
+    );
+
     console.log("[mse] attempting to play with audio...");
     remoteVideo.muted = false;
     remoteVideo
@@ -1065,19 +1075,19 @@ function onRelayChunk(payload) {
       });
   }
 
-  // Синхронизация с live-краем: если отстаём больше чем на 0.5 сек, перематываем
+  // Синхронизация с live-краем: если отстаём больше чем на 0.2 сек, перематываем (более агрессивно)
   if (!remoteVideo.paused && sourceBuffer && sourceBuffer.buffered.length > 0) {
     const bufferedEnd = sourceBuffer.buffered.end(
       sourceBuffer.buffered.length - 1,
     );
     const lag = bufferedEnd - remoteVideo.currentTime;
-    if (lag > 0.5) {
+    if (lag > 0.2) {
       console.log(
         "[mse] lag detected:",
         lag.toFixed(2),
         "s, seeking to live edge",
       );
-      remoteVideo.currentTime = bufferedEnd - 0.1;
+      remoteVideo.currentTime = bufferedEnd - 0.05;
     }
   }
 }
