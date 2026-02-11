@@ -31,6 +31,7 @@ const talkerLabel = document.getElementById("talker-label");
 const talkerNameEl = document.getElementById("talker-name");
 const noStreamEl = document.getElementById("no-stream");
 const peersList = document.getElementById("peers-list");
+const unmuteBtn = document.getElementById("unmute-btn");
 
 // ── Состояние ──
 let ws = null;
@@ -104,6 +105,12 @@ leaveBtn.addEventListener("click", () => {
   if (confirm("Выйти из комнаты?")) {
     leaveRoom();
   }
+});
+
+// Unmute button
+unmuteBtn.addEventListener("click", () => {
+  remoteVideo.muted = false;
+  unmuteBtn.hidden = true;
 });
 
 function handleJoin() {
@@ -653,8 +660,9 @@ function onRelayChunk(payload) {
   if (remoteVideo.paused) {
     remoteVideo.play().catch((err) => {
       console.log("[mse] autoplay blocked, trying with muted");
-      // Autoplay заблокирован — ставим muted и пробуем снова
+      // Autoplay заблокирован — ставим muted и показываем кнопку unmute
       remoteVideo.muted = true;
+      unmuteBtn.hidden = false;
       remoteVideo.play().catch((e) => {
         console.error("[mse] play error:", e.name, e.message);
       });

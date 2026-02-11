@@ -1,0 +1,31 @@
+# TeleTalkie Caddy Configuration
+# Замените your-domain.com на ваш реальный домен
+
+your-domain.com {
+    # Reverse proxy для всех запросов
+    reverse_proxy localhost:8080 {
+        # Настройки для WebSocket
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Таймауты для long-lived соединений
+        transport http {
+            read_timeout 1h
+            write_timeout 1h
+        }
+    }
+
+    # Логирование
+    log {
+        output file /var/log/caddy/teletalkie.log
+        format json
+    }
+}
+
+# Локальное тестирование (если нужно)
+# localhost:443 {
+#     tls internal
+#     reverse_proxy localhost:8080
+# }
