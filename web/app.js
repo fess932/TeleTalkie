@@ -650,6 +650,23 @@ function releaseLocalStream() {
 
 async function startTalking() {
   try {
+    // Убеждаемся что предыдущий recorder остановлен
+    if (recorder) {
+      console.warn("[media] recorder still exists, stopping it");
+      if (recorder.state !== "inactive") {
+        recorder.stop();
+      }
+      recorder = null;
+    }
+
+    // Убеждаемся что предыдущий canvas stream остановлен
+    if (canvasStream) {
+      console.warn("[media] canvas stream still exists, stopping it");
+      stopCanvasStream();
+      canvasStream.getTracks().forEach((t) => t.stop());
+      canvasStream = null;
+    }
+
     const stream = await ensureLocalStream();
 
     // Показываем локальное превью (оригинальный stream)
@@ -662,7 +679,10 @@ async function startTalking() {
     const { stream: canvasStreamObj } = createCanvasStream(stream);
     canvasStream = canvasStreamObj;
 
-    console.log("[media] canvas stream created");
+    console.log(
+      "[media] canvas stream created, tracks:",
+      canvasStream.getTracks().length,
+    );
 
     const mimeType = pickRecorderMimeType();
     if (!mimeType) {
@@ -717,9 +737,24 @@ async function startTalking() {
 
     recorder.onstart = () => {
       console.log("[media] recording started, mimeType:", mimeType);
+      console.log("[media] recorder state:", recorder.state);
+      console.log("[media] canvas stream active:", canvasStream.active);
+      console.log(
+        "[media] canvas video track:",
+        canvasStream.getVideoTracks()[0]?.readyState,
+      );
+      console.log(
+        "[media] canvas audio track:",
+        canvasStream.getAudioTracks()[0]?.readyState,
+      );
+    };
+
+    recorder.onstop = () => {
+      console.log("[media] recording stopped");
     };
 
     // Запускаем с интервалом 200мс для стабильных чанков ~10KB
+    console.log("[media] starting recorder...");
     recorder.start(200); // чанк каждые 200мс
   } catch (err) {
     console.error("[media] startTalking error:", err);
