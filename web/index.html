@@ -65,19 +65,6 @@
 
         <!-- Экран комнаты -->
         <div id="room-screen" class="screen" hidden>
-            <header>
-                <span id="room-name"></span>
-                <span id="user-name"></span>
-                <button
-                    id="refresh-btn"
-                    class="header-btn"
-                    title="Обновить страницу"
-                >
-                    ↻
-                </button>
-                <button id="leave-btn" title="Выйти из комнаты">✕</button>
-            </header>
-
             <div id="video-container">
                 <video id="remote-video" autoplay playsinline muted></video>
                 <div id="talker-label" hidden>
@@ -102,6 +89,19 @@
                 <h3>Участники</h3>
                 <ul id="peers-list"></ul>
             </div>
+
+            <footer>
+                <span id="room-name"></span>
+                <span id="user-name"></span>
+                <button
+                    id="refresh-btn"
+                    class="header-btn"
+                    title="Обновить страницу"
+                >
+                    ↻
+                </button>
+                <button id="leave-btn" title="Выйти из комнаты">✕</button>
+            </footer>
         </div>
 
         <script src="app.js"></script>
