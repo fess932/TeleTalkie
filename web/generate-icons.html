@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Generate Icons</title>
+</head>
+<body>
+    <h1>TeleTalkie Icon Generator</h1>
+    <canvas id="canvas192" width="192" height="192"></canvas>
+    <canvas id="canvas512" width="512" height="512"></canvas>
+    <br>
+    <a id="download192" download="icon-192.png">Download 192x192</a><br>
+    <a id="download512" download="icon-512.png">Download 512x512</a>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+
+            // Background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, size, size);
+
+            // Circle
+            ctx.fillStyle = '#e94560';
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Radio icon (simplified antenna and body)
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = size * 0.04;
+
+            // Antenna
+            ctx.beginPath();
+            ctx.moveTo(size/2, size * 0.25);
+            ctx.lineTo(size/2, size * 0.4);
+            ctx.stroke();
+
+            // Antenna tip
+            ctx.beginPath();
+            ctx.arc(size/2, size * 0.23, size * 0.03, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Radio body
+            ctx.fillRect(size * 0.4, size * 0.55, size * 0.2, size * 0.15);
+
+            // Speaker grilles
+            ctx.lineWidth = size * 0.015;
+            for (let i = 0; i < 3; i++) {
+                const y = size * 0.6 + i * size * 0.03;
+                ctx.beginPath();
+                ctx.moveTo(size * 0.42, y);
+                ctx.lineTo(size * 0.58, y);
+                ctx.stroke();
+            }
+        }
+
+        // Generate both icons
+        const canvas192 = document.getElementById('canvas192');
+        const canvas512 = document.getElementById('canvas512');
+
+        drawIcon(canvas192, 192);
+        drawIcon(canvas512, 512);
+
+        // Setup download links
+        document.getElementById('download192').href = canvas192.toDataURL();
+        document.getElementById('download512').href = canvas512.toDataURL();
+    </script>
+</body>
+</html>
