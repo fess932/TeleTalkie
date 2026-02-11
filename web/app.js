@@ -107,12 +107,14 @@ let sourceBuffer = null;
 let chunkQueue = [];
 let mseReady = false;
 
-// ── Выбор mimeType для MediaRecorder (только H.264 + AAC) ──
+// ── Выбор mimeType для MediaRecorder (H.264 с разными аудио кодеками) ──
 const H264_MIME_CANDIDATES = [
   "video/mp4;codecs=avc1.42E01E,mp4a.40.2", // H.264 Baseline + AAC
   "video/mp4;codecs=avc1.4d002a,mp4a.40.2", // H.264 Main + AAC
-  "video/mp4;codecs=avc1.42E01E", // H.264 Baseline без аудио
-  "video/mp4", // Общий MP4
+  "video/webm;codecs=h264,opus", // H.264 + Opus (Chrome/Firefox)
+  "video/webm;codecs=avc1.42E01E,opus", // H.264 Baseline + Opus
+  "video/mp4;codecs=avc1.42E01E", // H.264 Baseline без аудио (fallback)
+  "video/mp4", // Общий MP4 (fallback)
 ];
 
 function pickRecorderMimeType() {
