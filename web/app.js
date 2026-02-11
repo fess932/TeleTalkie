@@ -738,14 +738,14 @@ async function startTalking() {
     recorder.onstart = () => {
       console.log("[media] recording started, mimeType:", mimeType);
       console.log("[media] recorder state:", recorder.state);
-      console.log("[media] canvas stream active:", canvasStream.active);
+      console.log("[media] stream active:", stream.active);
       console.log(
-        "[media] canvas video track:",
-        canvasStream.getVideoTracks()[0]?.readyState,
+        "[media] video track:",
+        stream.getVideoTracks()[0]?.readyState,
       );
       console.log(
-        "[media] canvas audio track:",
-        canvasStream.getAudioTracks()[0]?.readyState,
+        "[media] audio track:",
+        stream.getAudioTracks()[0]?.readyState,
       );
     };
 
