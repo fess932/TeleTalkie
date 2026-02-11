@@ -867,15 +867,32 @@ function initMSE() {
     console.log(
       "[mse] video waiting for data, currentTime:",
       remoteVideo.currentTime,
+      "buffered:",
+      sourceBuffer && sourceBuffer.buffered.length > 0
+        ? `${sourceBuffer.buffered.start(0).toFixed(2)}-${sourceBuffer.buffered.end(sourceBuffer.buffered.length - 1).toFixed(2)}`
+        : "empty",
     );
   });
 
   remoteVideo.addEventListener("playing", () => {
-    console.log("[mse] video playing");
+    console.log(
+      "[mse] video playing, currentTime:",
+      remoteVideo.currentTime.toFixed(2),
+    );
   });
 
   remoteVideo.addEventListener("stalled", () => {
-    console.log("[mse] video stalled");
+    console.log("[mse] video stalled!");
+    console.log("[mse] - currentTime:", remoteVideo.currentTime.toFixed(2));
+    console.log("[mse] - readyState:", remoteVideo.readyState);
+    console.log(
+      "[mse] - buffered:",
+      sourceBuffer && sourceBuffer.buffered.length > 0
+        ? `${sourceBuffer.buffered.start(0).toFixed(2)}-${sourceBuffer.buffered.end(sourceBuffer.buffered.length - 1).toFixed(2)}`
+        : "empty",
+    );
+    console.log("[mse] - queue length:", chunkQueue.length);
+    console.log("[mse] - mseReady:", mseReady);
   });
 
   remoteVideo.addEventListener("error", (e) => {
@@ -1022,7 +1039,13 @@ function onRelayChunk(payload) {
     return;
   }
 
-  console.log("[mse] received chunk, size:", payload.byteLength);
+  const now = performance.now();
+  console.log(
+    "[mse] received chunk, size:",
+    payload.byteLength,
+    "time:",
+    now.toFixed(0),
+  );
   chunkQueue.push(payload.buffer);
   flushQueue();
 
